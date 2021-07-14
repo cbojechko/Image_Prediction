@@ -87,11 +87,11 @@ SID = 1540 #source to imager distance
 SAD = 1000 # source to isocenter
 print("Ray Tracing ")
 
-sourceCT = np.array([origin[0],-SAD+origin[1],origin[2]])
 
 # Size of the Panel 
 nx = 320
 nz = 160
+
 #rayvec = np.zeros((1280,1280))
 rayvec = np.zeros((nz,nx))
 zstep = 2.688
@@ -99,21 +99,26 @@ xstep = 1.344
 
 epidEdgeX = -nx/2*xstep
 epidEdgeZ = -nz/2*zstep
-""" 
+
+
+#define gantry angle this will rotate the source and the EPID positions 
+gantryang =45
+rotsource = rays.source_rotate(gantryang,origin)
+
 start = time.time()
 print(" Starting Loop ", str(start))
 
 pr = cProfile.Profile()
 pr.enable()
-
 # # Testing 2D scan
 for i in range(1,nx):
     for j in range(1,nz):
-        #print(" Ray Index " +str(i) + " postion on EPID " + str(epidEdgeX+xstep*0.336) + "  " + str(epidEdgeZ+zstep*0.336) )
+        #print(" Ray Index i " +str(i) + " postion on EPID " + str(epidEdgeX+i*xstep) + " index j " + str(j) + " Position on EPID " + str(epidEdgeZ+j*zstep) )
         #PointOnEPID = np.array([(epidEdge+i*0.336)+origin[0],(SID-SAD)+origin[1],(epidEdge+j*0.336)+origin[2]]) 
-        PointOnEPID = np.array([(epidEdgeX+i*xstep)+origin[0],(SID-SAD)+origin[1],(epidEdgeZ+j*zstep)+origin[2]]) 
-        ray= PointOnEPID-sourceCT 
-        rayvec[nz-j,nx-i] = rays.ray_trace(image,origin,sourceCT,ray,voxDim,voxSize)
+        PointOnEPID = np.array([(epidEdgeX+i*xstep),SID-SAD,(epidEdgeZ+j*zstep)]) 
+        ray= rays.EPID_rotate(gantryang,origin,PointOnEPID)-rotsource
+        #print("It's RAY! " + str(ray))
+        rayvec[nz-j,nx-i] = rays.new_trace(image,origin,rotsource,ray,voxDim,voxSize)
 
 
 pr.disable()
@@ -121,14 +126,15 @@ s = io.StringIO()
 #sortby = SortKey.CUMULATIVE
 #ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
 pr.print_stats()
-print(s.getvalue()) """
+print(s.getvalue()) 
 
 # end = time.time()
 # print(" Ending Loop ", str(end) + " Time for loop " + str(end-start))
 
 
-# plt.imshow(rayvec)
-# plt.show()
+plt.imshow(rayvec)
+plt.show()
+
 
 # # Testing Scan in one direction 
 # for i in range(0,1280):
@@ -143,33 +149,15 @@ print(s.getvalue()) """
 # plt.plot(rayvec)
 # plt.show()
 
-#Testing a single ray
-# At gantry 0, points on the EPID will be positive Y 
 
 
-# pr = cProfile.Profile()
-# pr.enable()
-
-
-epidEdge = -1280/2*0.336
-PointOnEPID1 = np.array([(epidEdge+640*0.336)+origin[0],(SID-SAD)+origin[1],(epidEdge+400*0.336)+origin[2]])  # select midway point for X 
-ray1= PointOnEPID1-sourceCT 
-test1 = rays.ray_trace(image,origin,sourceCT,ray1,voxDim,voxSize)
+# epidEdge = -1280/2*0.336
+# PointOnEPID1 = np.array([(epidEdge+640*0.336)+origin[0],(SID-SAD),(epidEdge+600*0.336)+origin[2]])  # select midway point for X 
+"""
+PointOnEPID1 = np.array([(epidEdgeX+160*xstep),SID-SAD,(epidEdgeZ+80*zstep)]) 
+print("Point on EPID" +str(PointOnEPID1))
+ray1= rays.EPID_rotate(gantryang,origin,PointOnEPID1)-rotsource
+test1 = rays.new_trace(image,origin,rotsource,ray1,voxDim,voxSize)
 print("Ray Sum 1   " + str(test1))
-PointOnEPID2 = np.array([(epidEdge+450*0.336)+origin[0],(SID-SAD)+origin[1],(epidEdge+400*0.336)+origin[2]])  # select midway point for X 
-ray2= PointOnEPID2-sourceCT 
-test2 = rays.ray_trace(image,origin,sourceCT,ray2,voxDim,voxSize)
-print("Ray Sum 2   " + str(test2))
-# pr.disable()
-# s = io.StringIO()
-# #sortby = SortKey.CUMULATIVE
-# #ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-# pr.print_stats()
-# print(s.getvalue())
+"""
 
-
-
-
-#rays.ray_trace(dicom_sitk_handle,origin,sourceCT,ray,voxDim,voxSize)
-#cProfile.run('rays.ray_trace(dicom_sitk_handle,origin,sourceCT,ray,voxDim,voxSize)','restats')
-#rayval= rays.ray_trace(dicom_sitk_handle,PointOnEPID)
