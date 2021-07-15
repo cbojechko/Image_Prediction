@@ -400,7 +400,7 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
         matrixsum = matrixsum+(alphaR-alphaC)*dist*(0.001*imagearr[izcnt,iycnt,ixcnt]+1)
         #s = "iz " + str(izcnt) + " iy "+ str(iycnt) + " ix "+ str(ixcnt) + " AlphaR " + str(alphaR) + " \n"
         #fileout.write(s)
-        print("iz " + str(izcnt) + " iy "+ str(iycnt) + " ix "+ str(ixcnt) + " Image Arr " + str(imagearr[izcnt,iycnt,ixcnt]))
+        #print("iz " + str(izcnt) + " iy "+ str(iycnt) + " ix "+ str(ixcnt) + " AlphaR " + str(alphaR) + " dist " + str(dist))
 
         alphaC = alphaR
         alphaR = min(alphaX+alphaXdel,alphaY+alphaYdel,alphaZ+alphaZdel)
@@ -408,21 +408,21 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
         #print(" Alpha X + Step " + str(alphaX+alphaXdel) + " Alpha Y " + str(alphaY+alphaYdel) + " Alpha Z " + str(alphaZ+alphaZdel)  )
         #print(" Step Del X " + str(alphaXdel) + " del Y " + str(alphaYdel) + " del Z " + str(alphaZdel)  )
         #print (" ALpha StEP " + str(alphaR) + " Cnt " + str(idx))
-        if(alphaX+alphaXdel < alphaY+alphaYdel and  alphaX+alphaXdel < alphaZ+alphaZdel):
+        if(alphaX+alphaXdel <= alphaY+alphaYdel and  alphaX+alphaXdel <= alphaZ+alphaZdel):
             #print(" Step X " + str(alphaX+alphaXdel) )
             alphaX = alphaX+alphaXdel
             if(rayX>0):
                 ixcnt = ixcnt+1
             else:
                 ixcnt = ixcnt-1
-        elif(alphaY+alphaYdel < alphaX+alphaXdel and  alphaY+alphaYdel < alphaZ+alphaZdel):
+        if(alphaY+alphaYdel <= alphaX+alphaXdel and  alphaY+alphaYdel <= alphaZ+alphaZdel):
             #print(" Step Y " + str(alphaY+alphaYdel) )
             alphaY=alphaY+alphaYdel
             if(rayY>0):
                 iycnt = iycnt+1
             else:
                 iycnt = iycnt-1
-        elif(alphaZ+alphaZdel < alphaX+alphaXdel and  alphaZ+alphaZdel < alphaY+alphaYdel):
+        if(alphaZ+alphaZdel <= alphaX+alphaXdel and  alphaZ+alphaZdel <= alphaY+alphaYdel):
             #print(" Step Z" + str(alphaZ+alphaZdel) )
             alphaZ = alphaZ+alphaZdel
             if(rayZ>0):
