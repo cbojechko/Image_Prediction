@@ -1,9 +1,11 @@
 # importing neccessary libraries 
 # file mangagment 
 
+#%%
 from cProfile import Profile
 import os 
 import zipfile
+import glob
 #from six.moves import urllib
 
 # array manipulation and plotting
@@ -39,48 +41,55 @@ def profile(fnc):
 
 
 # path to CT image 
-patpath = os.path.join('P:\Image_Prediction','11657988')
-myCTpath = os.path.join('P:\Image_Prediction','11657988','frac2cbct')
+patpath = os.path.join('P:\Image_Prediction','04455192')
+myCTpath = os.path.join('P:\Image_Prediction','04455192','cbct1')
 
 print('path ' + myCTpath)
 
-Dicom_reader = DicomReaderWriter(description='Examples',verbose=True)
-print('Estimated 30 seconds, depending on number of cores present in your computer')
-Dicom_reader.walk_through_folders(myCTpath) # need to define in order to use all_roi method
+#Search for a numpy file 
+npfile = glob.glob(str(myCTpath) + '\*.npz')
+if(len(npfile) == 0):
+    print("No numpy file for CBCT, make numpy file")
 
-Dicom_reader.set_index(0)  # This index has all the structures, corresponds to pre-RT T1-w image for patient 011
-Dicom_reader.get_images()
+    Dicom_reader = DicomReaderWriter(description='Examples',verbose=True)
+    print('Estimated 30 seconds, depending on number of cores present in your computer')
+    Dicom_reader.walk_through_folders(myCTpath) # need to define in order to use all_roi method
 
-image = Dicom_reader.ArrayDicom 
+    Dicom_reader.set_index(0)  # This index has all the structures, corresponds to pre-RT T1-w image for patient 011
+    Dicom_reader.get_images()
 
-dicom_sitk_handle = Dicom_reader.dicom_handle
+    dicom_sitk_handle = Dicom_reader.dicom_handle
 
-numpyout = myCTpath + "test.npy"
-#print('fileout ' + fileout)
-#sitk.WriteImage(dicom_sitk_handle,fileout)
+    #voxData = sitk.GetArrayFromImage(dicom_sitk_handle)
+
+    origin = dicom_sitk_handle.GetOrigin() 
+    print("Orgin " + str(origin))
+
+    voxDim = dicom_sitk_handle.GetSpacing() 
+    print("voxDim " + str(voxDim))
+
+    voxSize = dicom_sitk_handle.GetSize()
+    print("VoxSize " + str(voxSize))
+
+    voxDim = np.asarray(voxDim)
+    voxSize = np.asarray(voxSize)
+    origin = np.asarray(origin)
+
+    image = Dicom_reader.ArrayDicom 
+
+    cbctnp = np.array(image)
+    npfileout = "cbct"
+    arrout = os.path.join(myCTpath, npfileout)
+    print("Saving CBCT vector "+ str(arrout))
+    np.savez_compressed(arrout,cbct=cbctnp,origin=origin,voxDim=voxDim,voxSize=voxSize)
+else:
+    print("Numpy file found")
+    npfin = np.load(npfile[0])
+    image = npfin['cbct']
+    origin = npfin['origin']
+    voxDim = npfin['voxDim']
+    voxSize = npfin['voxSize']
 #%%
-voxData = sitk.GetArrayFromImage(dicom_sitk_handle)
-#print("Size " + imarr.shape)
-origin = dicom_sitk_handle.GetOrigin() 
-xorigin = origin[0] 
-yorigin = origin[1] 
-zorigin = origin[2] 
-
-print("Orgin " + str(origin))
-voxDim = dicom_sitk_handle.GetSpacing() 
-xspace = voxDim[0]
-yspace = voxDim[1]
-zspace = voxDim[2]
-print("voxDim " + str(voxDim))
-voxSize = dicom_sitk_handle.GetSize()
-xsize = voxSize[0]
-ysize = voxSize[1]
-zsize = voxSize[2]
-print("VoxSize " + str(voxSize))
-
-voxDim = np.asarray(voxDim)
-voxSize = np.asarray(voxSize)
-origin = np.asarray(origin)
 
 # print(len(cbctlist))
 SID = 1540 #source to imager distance
@@ -89,20 +98,20 @@ print("Ray Tracing ")
 
 
 # Size of the Panel 
-nx = 320
-nz = 160
+nx = 125
+nz = 125
 
 #rayvec = np.zeros((1280,1280))
 rayvec = np.zeros((nz,nx))
-zstep = 2.688
-xstep = 1.344
+zstep = 3.44
+xstep = 3.44
 
 epidEdgeX = -nx/2*xstep
 epidEdgeZ = -nz/2*zstep
 
 
 #define gantry angle this will rotate the source and the EPID positions 
-gantryang =45
+gantryang =0
 rotsource = rays.source_rotate(gantryang,origin)
 
 start = time.time()
@@ -135,6 +144,12 @@ print(s.getvalue())
 plt.imshow(rayvec)
 plt.show()
 
+#Save projection 
+projfileout = "cbctprojection" + str(gantryang)
+arrout = os.path.join(patpath, projfileout)
+print("Saving Projection "+ str(arrout))
+np.savez_compressed(arrout,projfileout)
+
 
 # # Testing Scan in one direction 
 # for i in range(0,1280):
@@ -161,3 +176,5 @@ test1 = rays.new_trace(image,origin,rotsource,ray1,voxDim,voxSize)
 print("Ray Sum 1   " + str(test1))
 """
 
+
+# %%

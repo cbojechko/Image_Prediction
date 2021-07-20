@@ -3,6 +3,8 @@
 
 # importing neccessary libraries 
 # file mangagment 
+
+#%%
 import os 
 import numpy as np
 import pydicom
@@ -18,7 +20,23 @@ for entry in os.listdir(Flupath):
 
 
 f = open(Flufile,'r')
-
 line = f.readlines()
+# Format of fluence file is consistent hard code the line numbers
+fluarr = np.fromstring(line[9],dtype=float,sep ='\t')
 
-print(line[10])
+for i in range(10,len(line)-1):
+     newline = np.fromstring(line[i],dtype=float,sep ='\t')
+     fluarr = np.vstack([fluarr,newline])
+
+
+#Number of pixels in fluence is 120x120 is this consistent? 
+#Resample factor 
+n = 1
+downsample = fluarr.reshape(120//n,n,120//n,n).mean(-1).mean(1)
+
+plt.imshow(downsample)
+plt.show()
+
+
+
+# %%

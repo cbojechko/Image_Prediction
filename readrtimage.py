@@ -4,13 +4,13 @@
 import os 
 import numpy as np
 import pydicom
-
+import matplotlib.pyplot as plt
 import SimpleITK as sitk
 
 
 #open a RI image
-RIpath = os.path.join('P:\Image_Prediction','11657988','frac1epid')
-Patpath = os.path.join('P:\Image_Prediction','11657988')
+RIpath = os.path.join('P:\Image_Prediction','04455192','RTIMAGE')
+
 
 for entry in os.listdir(RIpath):
     if os.path.isfile(os.path.join(RIpath, entry)):
@@ -19,24 +19,32 @@ for entry in os.listdir(RIpath):
 
 
         # read in the dicom info 
-        ds = pydicom.read_file(RIfile)
-        colang = ds.BeamLimitingDeviceAngle
-        print("Colimator angle " + str(colang))
-        rows = ds.Rows
-        cols = ds.Columns
-        pixspace = ds.ImagePlanePixelSpacing
-        image = ds.pixel_array
-        rescale = ds.RescaleSlope
-        #multiply by the rescaling 
-        imagescale = np.multiply(image,rescale)
-        # reshape the 2d image into a 1 dim vector 
+ds = pydicom.read_file(RIfile)
+colang = ds.BeamLimitingDeviceAngle
+print("Colimator angle " + str(colang))
+rows = ds.Rows
+cols = ds.Columns
+pixspace = ds.ImagePlanePixelSpacing
+image = ds.pixel_array
+rescale = ds.RescaleSlope
+#multiply by the rescaling 
+imagescale = np.multiply(image,rescale)
+
+n = 10
+downsample = imagescale.reshape(1280//n,n,1280//n,n).mean(-1).mean(1)
+# reshape the 2d image into a 1 dim vector 
         
-        imagevector = imagescale.reshape(1,rows*cols)
+        #imagevector = imagescale.reshape(1,rows*cols)
 
-        npfileout = "imagevector_col" + str(int(np.round(colang))) 
-        imageout = os.path.join(Patpath, npfileout)
-        print("Saving Image vector "+ str(imageout))
-        np.savez_compressed(imageout,imagevector)
+        #npfileout = "imagevector_col" + str(int(np.round(colang))) 
+        #imageout = os.path.join(Patpath, npfileout)
+        #print("Saving Image vector "+ str(imageout))
+        #np.savez_compressed(imageout,imagevector)
+
+
+plt.imshow(downsample)
+plt.show()
 
 
 
+# %%
