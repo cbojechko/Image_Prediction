@@ -20,7 +20,7 @@ import pydicom
 
 # path to CT image 
 patpath = os.path.join('P:\Image_Prediction','04455192')
-myCTpath = os.path.join('P:\Image_Prediction','04455192','cbct_test')
+myCTpath = os.path.join('P:\Image_Prediction','04455192','CBCTs')
 
 print('path ' + myCTpath)
 
@@ -28,7 +28,7 @@ print('path ' + myCTpath)
 imageReader = sitk.ImageSeriesReader()
 #dicom_names = imageReader.GetGDCMSeriesFileNames(myCTpath)
 series_ids = imageReader.GetGDCMSeriesIDs(myCTpath)
-print("Found " + str(len(series_ids)) + " Two Different Series IDs")
+print("Found " + str(len(series_ids)) + " Different Series IDs")
 series_dates=np.zeros(len(series_ids))
 series_times=np.zeros(len(series_ids))
 for i in range(0,len(series_ids)):
@@ -77,22 +77,44 @@ for n in badidx:
 
 # Save remaing CT Scans as numpy arrays 
 
+for i in range(0,len(series_ids)):
+    for j in badidx:
+        if(i ==j):
+            continue
+    seriesf = imageReader.GetGDCMSeriesFileNames(myCTpath, series_ids[i])
+    ds = pydicom.read_file(seriesf[0])
+    aqdata = ds.AcquisitionDate
+    imageReader.SetFileNames(seriesf)
+
+    img = imageReader.Execute()
+
+    imarr = sitk.GetArrayFromImage(img)
+    origin = img.GetOrigin() 
+    print("Orgin " + str(origin))
+
+    voxDim = img.GetSpacing() 
+    print("voxDim " + str(voxDim))
+
+    voxSize = img.GetSize()
+    print("VoxSize " + str(voxSize))
+
+    voxDim = np.asarray(voxDim)
+    voxSize = np.asarray(voxSize)
+    origin = np.asarray(origin)
+    cbctnp = np.array(imarr)
+    npfileout = "cbct" + str(int(aqdata))
+    arrout = os.path.join(myCTpath, npfileout)
+    print("Saving CBCT vector "+ str(arrout))
+    np.savez_compressed(arrout,cbct=cbctnp,origin=origin,voxDim=voxDim,voxSize=voxSize)
+
+print("Clean Up DICOM Files")
+for i in range(0,len(series_ids)):
+    for j in badidx:
+        if(i ==j):
+            continue
+    seriesf = imageReader.GetGDCMSeriesFileNames(myCTpath, series_ids[int(i)])
+    tt = list(seriesf)
+    for k in range(0,len(tt)):
+        os.remove(tt[k])
 
 
-#imageReader.SetFileNames(seriesf)
-
-#img = imageReader.Execute()
-
-#imarr = sitk.GetArrayFromImage(img)
-
-#mdata = imageReader.GetMetaDataKeys(1)
-
-# Dicom_reader.set_index(1)  # This index has all the structures, corresponds to pre-RT T1-w image for patient 011
-# Dicom_reader.get_images()
-
-# dicom_sitk_handle = Dicom_reader.dicom_handle
-
-# dicom_sitk_handle.GetOrigin()
-
-
-# %%
