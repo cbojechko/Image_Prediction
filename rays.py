@@ -397,7 +397,15 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
     while(alphaR < alphaMAX):
        
         dist = np.sqrt(np.square((alphaR-alphaC)*rayX)+ np.square((alphaR-alphaC)*rayY) +  np.square((alphaR-alphaC)*rayZ)) 
-        matrixsum = matrixsum+(alphaR-alphaC)*dist*(0.001*imagearr[izcnt,iycnt,ixcnt]+1)
+        if( imagearr[izcnt,iycnt,ixcnt] <= 0):
+            matrixsum = matrixsum+dist*(0.001*imagearr[izcnt,iycnt,ixcnt]+1)/10.0   
+        else:
+            matrixsum = matrixsum+dist*(0.00037*imagearr[izcnt,iycnt,ixcnt]+1)/10.0
+        # approximate with Bi linear function to estimte the radiolocal path length
+        #print("Dist " + str(dist))
+        #print("Alpha Diff " + str(alphaR-alphaC))
+        #print("HU " + str(imagearr[izcnt,iycnt,ixcnt]) + " Electron Density " + str(0.001*imagearr[izcnt,iycnt,ixcnt]+1))
+        #print("matrix sum " + str(matrixsum))
         #s = "iz " + str(izcnt) + " iy "+ str(iycnt) + " ix "+ str(ixcnt) + " AlphaR " + str(alphaR) + " \n"
         #fileout.write(s)
         #print("iz " + str(izcnt) + " iy "+ str(iycnt) + " ix "+ str(ixcnt) + " AlphaR " + str(alphaR) + " dist " + str(dist))

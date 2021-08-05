@@ -1,3 +1,4 @@
+# Depreciated
 # importing neccessary libraries 
 # file mangagment 
 
@@ -20,39 +21,19 @@ from DicomRTTool.ReaderWriter import DicomReaderWriter
 import rays
 import time
 
-import cProfile, pstats, io
-
-def profile(fnc):
-    
-    def inner(*args, **kwargs):
-        
-        pr = cProfile.Profile()
-        pr.enable()
-        retval = fnc(*args, **kwargs)
-        pr.disable()
-        s = io.StringIO()
-        sortby = 'cumulative'
-        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
-        print(s.getvalue())
-        return retval
-
-    return inner
-
-
 # path to CT image 
-patpath = os.path.join('P:\Image_Prediction','04455192')
-myCTpath = os.path.join('P:\Image_Prediction','04455192','cbct1')
+patpath = os.path.join('P:\Image_Prediction','Testing','04455192')
+myCTpath = os.path.join('P:\Image_Prediction','Testing','04455192','CBCT')
 
 print('path ' + myCTpath)
 
 #Search for a numpy file 
 npfile = glob.glob(str(myCTpath) + '\*.npz')
 if(len(npfile) == 0):
-    print("No numpy file for CBCT, make numpy file")
+    print("No numpy file for CBCT found , make numpy file")
 
     Dicom_reader = DicomReaderWriter(description='Examples',verbose=True)
-    print('Estimated 30 seconds, depending on number of cores present in your computer')
+    print('Read CBCT Dicom Files ......')
     Dicom_reader.walk_through_folders(myCTpath) # need to define in order to use all_roi method
 
     Dicom_reader.set_index(0)  # This index has all the structures, corresponds to pre-RT T1-w image for patient 011
@@ -91,7 +72,6 @@ else:
     voxSize = npfin['voxSize']
 #%%
 
-# print(len(cbctlist))
 SID = 1540 #source to imager distance
 SAD = 1000 # source to isocenter
 print("Ray Tracing ")
@@ -114,11 +94,7 @@ epidEdgeZ = -nz/2*zstep
 gantryang =0
 rotsource = rays.source_rotate(gantryang,origin)
 
-start = time.time()
-print(" Starting Loop ", str(start))
 
-pr = cProfile.Profile()
-pr.enable()
 # # Testing 2D scan
 for i in range(1,nx):
     for j in range(1,nz):
@@ -130,19 +106,8 @@ for i in range(1,nx):
         rayvec[nz-j,nx-i] = rays.new_trace(image,origin,rotsource,ray,voxDim,voxSize)
 
 
-pr.disable()
-s = io.StringIO()
-#sortby = SortKey.CUMULATIVE
-#ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-pr.print_stats()
-print(s.getvalue()) 
-
-# end = time.time()
-# print(" Ending Loop ", str(end) + " Time for loop " + str(end-start))
-
-
-plt.imshow(rayvec)
-plt.show()
+#plt.imshow(rayvec)
+#plt.show()
 
 #Save projection 
 projfileout = "cbctprojection" + str(gantryang)
@@ -177,4 +142,3 @@ print("Ray Sum 1   " + str(test1))
 """
 
 
-# %%
