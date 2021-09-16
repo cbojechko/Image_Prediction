@@ -18,6 +18,19 @@ from scipy import ndimage
 
 def FluNP(Flupath):
 
+    #Check to see if numpy files already exist. Skip creation if they do
+    npfile = glob.glob(str(Flupath) + '\*.npz')
+    if(npfile):
+        print("Numpy files exists skip making new ones")
+        return
+    # Check to see if RTIMAGE files exist yet
+    # RIpath = os.path.join(os.path.dirname(Flupath),'RTIMAGE')
+    # print(glob.glob(str(RIpath) + '\*.dcm'))
+    # RI = glob.glob(str(RIpath) + '\*.dcm')
+    # if not RI:
+    #     print("No RTIMAGE files, skip making Fluence numpy")
+    #     return
+
     imsize = 256
     #Search for a numpy file 
     FLUfiles = glob.glob(str(Flupath) + '\*.optimal_fluence')
