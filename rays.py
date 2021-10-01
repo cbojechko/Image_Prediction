@@ -227,7 +227,8 @@ def EPID_rotate(angle,origin,EPIDpt):
 def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
 
     matrixsum = 0
-
+    # Epsilon value for rounding errors associated with alphaMAX 
+    ep = 1.0e-12  
     voxDimX = voxDim[0]
     voxDimY = voxDim[1]
     voxDimZ = voxDim[2]
@@ -326,11 +327,6 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
         izmin = int(np.ceil(voxSizeZ-(Zmax -alphaMAX*rayZ- sourceCTZ)/voxDimZ))
         izmax = int(np.floor(1.0 + ( sourceCTZ + alphaMIN*rayZ-Zmin )/voxDimZ))
 
-
-    if( (ixmax == voxSizeX and ixmin == voxSizeX) or (iymax == voxSizeY and iymin == voxSizeY) or (izmax == voxSizeZ and izmin == voxSizeZ)):
-        #print("Glancing blow do not trace")
-        return matrixsum
-
      # This can happen when ray is close to parrallel and rounded with ceiling and floor   
     if(ixmax < ixmin):
         ixmax = ixmin
@@ -341,6 +337,10 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
     if(izmax < izmin):
         izmax = izmin
 
+    if( (ixmax == voxSizeX and ixmin == voxSizeX) or (iymax == voxSizeY and iymin == voxSizeY) or (izmax == voxSizeZ and izmin == voxSizeZ)):
+        #print("Glancing blow do not trace")
+        return matrixsum
+   
     #Nalpha = (ixmax-ixmin+1)+(iymax-iymin+1)+(izmax-izmin+1)
     #print("N alpha " + str(Nalpha))
 
@@ -392,9 +392,9 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
     idx = 0
     
     
-        
+      
     #fileout = open('raynew.txt','w')
-    while(alphaR < alphaMAX):
+    while(alphaR < alphaMAX-ep):
        
         dist = np.sqrt(np.square((alphaR-alphaC)*rayX)+ np.square((alphaR-alphaC)*rayY) +  np.square((alphaR-alphaC)*rayZ)) 
         if( imagearr[izcnt,iycnt,ixcnt] <= 0):

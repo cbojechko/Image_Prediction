@@ -9,12 +9,16 @@ import rays
 
 
 def MakeCBCTProjection(RIpath,CBCTpath):
-
+    
+    npfile = glob.glob(str(CBCTpath) + '\cbctproj*.npz')
+    if(npfile):
+        print("Projection files exists skip making new ones")
+        return
+    
     # Set parameters for ray tracing 
     SID = 1540 #source to imager distance
     SAD = 1000 # source to isocenter
     print("Ray Tracing ")
-
 
     # Size of the Panel 
     nx = 256
@@ -28,10 +32,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
     epidEdgeX = -nx/2*xstep
     epidEdgeZ = -nz/2*zstep
 
-    
     print('path ' + CBCTpath)
-
-   
 
     #Search for a numpy file 
     RIfiles = glob.glob(str(RIpath) + '\RI*.npz')
@@ -56,12 +57,16 @@ def MakeCBCTProjection(RIpath,CBCTpath):
     dates = np.unique(dates)
     fxs = np.unique(fxs)
         
-    
-
     #Search for a numpy file 
 
     for j in range(0,len(dates)):
         cbctfile = str(CBCTpath) + '\cbct' + str(int(dates[j])) +'.npz'
+        if(os.path.exists(cbctfile)):
+            print("Load File")
+        else:
+            print(str(cbctfile) + " CBCT Does not Exists")
+            continue
+        
         print("Load file " + cbctfile)
         npcbct = np.load(cbctfile)
         image = npcbct['cbct']
@@ -70,7 +75,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
         voxSize = npcbct['voxSize']
         print("Make projection for Fraction " + str(int(fxs[j])) + " On " + str(int(dates[j])) )
         for gantryang in gangs:
-            print(" Gantry angle for projection " + str(int(gantryang)))
+            print("Gantry angle for projection " + str(int(gantryang)))
             rotsource = rays.source_rotate(gantryang,origin)
             
             Projex = CBCTpath + "\cbctprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j])) + ".npz"
@@ -91,17 +96,29 @@ def MakeCBCTProjection(RIpath,CBCTpath):
             projfileout = "cbctprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j]))
             print("Save npz    " + projfileout)
             arrout = os.path.join(CBCTpath, projfileout)
-            print("Saving Projection "+ str(arrout))
+            #print("Saving Projection "+ str(arrout))
             np.savez_compressed(arrout,cbctproj)
 
 
 # Main loop 
-Basepath = 'P:\Image_Prediction\PatientList'
+Basepath = 'P:\Image_Prediction\PatientData'
 MRNs = os.listdir(Basepath)
 
 for i in range(0,len(MRNs)):
-    #RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
     RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
-    CBCTpath = os.path.join(Basepath,MRNs[i],'CBCT')
+    CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
     print(RTIpath)
     MakeCBCTProjection(RTIpath,CBCTpath)
+
+
+"""
+# Single patient 
+Basepath = 'P:\\Image_Prediction\\PatientData\\31281088'
+MRNs = os.listdir(Basepath)
+
+
+RTIpath = os.path.join(Basepath,'RTIMAGE')
+CBCTpath = os.path.join(Basepath,'CT')
+print(RTIpath)
+MakeCBCTProjection(RTIpath,CBCTpath)
+"""

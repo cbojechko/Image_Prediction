@@ -1,25 +1,23 @@
 #%%
 import os 
 import numpy as np
-import pydicom
-import matplotlib.pyplot as plt
-import SimpleITK as sitk
 import glob
 import re
-import rays
 import PIL
 from pathlib import Path
+from PIL import Image
 
-def MakeJPEG(Patpath,cntr):
+def MakeJPEG(Patpath,pcntr):
 
-    maxRI = 2.3
-    maxPDOS = 3.5
-    maxFlu = 2.0
+    cntr = 1
+    maxRI = 1.20
+    maxPDOS = 3.45
+    maxFlu = 1.86
     maxLen = 40
     Basepath = os.path.dirname(os.path.dirname(Patpath))
-    print(Basepath)
+    #print(Basepath)
     RIpath = os.path.join(Patpath,'RTIMAGE')
-    myCTpath = os.path.join(Patpath,'CBCT')
+    myCTpath = os.path.join(Patpath,'CT')
     Flupath = os.path.join(Patpath,'Fluence')
 
 
@@ -35,23 +33,24 @@ def MakeJPEG(Patpath,cntr):
         fxnum = ff[0][2:len(ff[0])-1]
        
         
-        print("Gantry Angle " + str(gang) + " Date " + str(date) + " Fraction " + str(fxnum))
+        #print("Gantry Angle " + str(gang) + " Date " + str(date) + " Fraction " + str(fxnum))
         npRT = np.load(file)
         RTarr = npRT['arr_0']
         # Load CBCT projection with same date/fraction and angle   
         cbctprojfile = str(myCTpath) + '\cbctprojection' + str(int(fxnum)) + '_G' + str(gang) +'_' + str(int(date)) +'.npz'
-        print(cbctprojfile)
+        #print(cbctprojfile)
         if(os.path.exists(cbctprojfile) == False):
+            print( " Projection File does not exsit " + cbctprojfile  )
             continue
-        print(cbctprojfile)
+        #print(cbctprojfile)
         npproj = np.load(cbctprojfile)
         #Load Fluence File with same angle 
         flufile = str(Flupath) + '\Fluence'+ str(gang) + '.npz'
-        print(flufile)
+        #print(flufile)
         npflu = np.load(flufile)
         #Load PDOS with same angle 
         PDOSfile = glob.glob(str(RIpath) + '\PDOS_G'+ str(gang) + '_' + '*.npz')
-        print(PDOSfile)
+        #print(PDOSfile)
         npPDOS = np.load(PDOSfile[0])
         FLUarr = npflu['arr_0']
         PDOSarr = npPDOS['arr_0']
@@ -79,9 +78,10 @@ def MakeJPEG(Patpath,cntr):
         #Join together fluence PDOS and CBCT projection 
         #join = np.dstack((FLUgs,PDOSgs,CBCTgs))
         join = np.hstack((CBCTgs,FLUgs,PDOSgs,RTgs))
-        filein = str(cntr+1)
+        filein = str(pcntr) + '_' + str(cntr)
+        print(filein)
         fileinp = os.path.join(Basepath,'testing_jpeg',filein)
-        print("Saving  "+ fileinp)
+        #print("Saving  "+ fileinp)
         #PDOSim = PIL.Image.fromarray(PDOSgs)
         Inputim = PIL.Image.fromarray(join)
         Inputim.save(fileinp + ".jpeg")
@@ -94,30 +94,32 @@ def MakeJPEG(Patpath,cntr):
         #print("Saving output "+ str(fileoutp))
         #np.savez_compressed(fileoutp,RTarr)
         cntr=cntr+1
-    return cntr
+    print("counter " + str(cntr))
+    
 
-"""
+
 ######################################################
 # Main loop loop over all patients
-Basepath = 'P:\Image_Prediction\PatientList'
+Basepath = 'P:\Image_Prediction\PatientData'
 MRNs = os.listdir(Basepath)
-cntr = 0
+pcntr = 1
 for i in range(0,len(MRNs)):
     Patpath = os.path.join(Basepath,MRNs[i])
     print(Patpath)
-    cntr = MakeJPEG(Patpath,cntr)
-"""
+    MakeJPEG(Patpath,pcntr)
+    pcntr = pcntr+1
 
+"""
 ######################################################
 # Generate for single patient
-Patpath = 'P:\Image_Prediction\PatientList\\22933592'
+Patpath = 'P:\Image_Prediction\PatientData\\07600869'
 #MRNs = os.listdir(Basepath)
 cntr = 228
 #for i in range(0,len(MRNs)):
 #Patpath = os.path.join(Basepath,MRNs[i])
 print(Patpath)
 cntr = MakeJPEG(Patpath,cntr)
-
+"""
 
 
 

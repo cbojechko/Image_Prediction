@@ -154,7 +154,7 @@ def FluNP(Flupath):
 
 
 # Main loop 
-Basepath = 'P:\Image_Prediction\PatientList'
+Basepath = 'P:\Image_Prediction\PatientData'
 MRNs = os.listdir(Basepath)
 
 for i in range(0,len(MRNs)):

@@ -5,13 +5,21 @@ import pydicom
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
 import glob
+import re
+from scipy import interpolate
 
+def SortRTIMAGE(Basepath,Ndownsample):
 
-
-def SortRTIMAGE(RIpath,Ndownsample):
-
+    PredictedPDOS = False
     #Search for a dicom files
+    RIpath = os.path.join(Basepath,'RTIMAGE')
+    RPpath = os.path.join(Basepath,'RTPLAN')
     RIfiles = glob.glob(str(RIpath) + '\*.dcm')
+    RPfile =  glob.glob(str(RPpath) + '\*.dcm')
+    dr = pydicom.read_file(RPfile[0])
+    rbs = dr.FractionGroupSequence[0].ReferencedBeamSequence
+    
+    #print(RIfiles)
 
     for file in RIfiles:
         ds = pydicom.read_file(file)
@@ -19,47 +27,82 @@ def SortRTIMAGE(RIpath,Ndownsample):
         print("file " + str(file))
         try:
             ds.FractionNumber
+            fxnum = ds.FractionNumber
         except AttributeError:
             print("No fx number")
-            break
-        
-
-      
-       
-        fxnum = ds.FractionNumber
+            try:
+                ds.ImageComments
+                if(re.search('Predicted Portal Dose Image',ds.ImageComments)):
+                    print("Predicted Portal Dose")
+                    fxnum = 0
+                    PredictedPDOS = True
+            except AttributeError:
+                print("Not a Prediction PDOS")
+                continue
         
         aqdata = ds.AcquisitionDate
         print("Fraction number " + str(fxnum) + " Date " + str(aqdata))
-        gantryang = ds.GantryAngle
-        gantryang = np.rint(gantryang)
+        gantryang = np.rint(ds.GantryAngle)
         if(gantryang == 360.0):
             gantryang =0
         print("Gantry Angle " + str(int(np.rint(gantryang))))
         image = ds.pixel_array
-        print("Image shape " + str(image.shape) )
-        if(image.shape[0] < 1280):
-            print("Image too small ?")
-            continue
+ 
+        #print("Image shape " + str(image.shape) )
+        #print("Position" + str(ds.RTImagePosition))
+        # if(image.shape[0] < 1280):
+        #     print("Image too small ?")
+        #     continue
+
         rescale = ds.RescaleSlope
-        print(" Re-Scaling  factor "  +str(rescale))
-        window_max = ds.WindowCenter+ds.WindowWidth/2
-        window_min = ds.WindowCenter-ds.WindowWidth/2
-        print("Window max "  + str(window_max) + " Window min " + str(window_min) )
+ 
+        #print(" Re-Scaling  factor "  +str(rescale))
+        #window_max = ds.WindowCenter+ds.WindowWidth/2
+        #window_min = ds.WindowCenter-ds.WindowWidth/2
+        #print("Window max "  + str(window_max) + " Window min " + str(window_min) )
         #multiply by the rescaling 
         imagescale = np.multiply(image,rescale)
-        downsample = imagescale.reshape(1280//Ndownsample,Ndownsample,1280//Ndownsample,Ndownsample).mean(-1).mean(1)
-        ndims = downsample.shape
+        if(PredictedPDOS):
+            #Geting the scaling factor for predicted images is tricky
+            #Get the beam number in PDOS file, loop over the beam numbers in RT file and get number of MU, rescale by MU
+            pdosbeamn = ds.ReferencedBeamNumber
+            for i in range(0,len(rbs)):
+                #print(rbs[i]. ReferencedBeamNumber)
+                try:
+                    rbs[i].BeamMeterset
+                    #print(rbs[i].BeamMeterset)
+                except AttributeError:
+                    continue
+                if(pdosbeamn == rbs[i]. ReferencedBeamNumber):
+                    print("found a match in RT PLAN")
+                    imagescale = np.multiply(imagescale,rbs[i].BeamMeterset)
+
+            # First up sample image then crop and downsample.  
+            x = np.array(range(imagescale.shape[1]))
+            y = np.array(range(imagescale.shape[0]))
+            #xx, yy = np.meshgrid(x, y)
+            f = interpolate.interp2d(x, y, imagescale, kind='linear')
+            xnew = np.linspace(0, imagescale.shape[1], 3*imagescale.shape[1])
+            ynew = np.linspace(0, imagescale.shape[0], 3*imagescale.shape[0])
+            pdosnew = f(xnew, ynew)
+            crop = (pdosnew.shape[1]-1280)//2
+            pdoscrop = pdosnew[crop+1:pdosnew.shape[1]-crop,crop+1:pdosnew.shape[1]-crop]
+            downsample = pdoscrop.reshape(1280//Ndownsample,Ndownsample,1280//Ndownsample,Ndownsample).mean(-1).mean(1)
+        else:
+            downsample = imagescale.reshape(1280//Ndownsample,Ndownsample,1280//Ndownsample,Ndownsample).mean(-1).mean(1)
+        #downsample = imagescale.reshape(1280//Ndownsample,Ndownsample,1280//Ndownsample,Ndownsample).mean(-1).mean(1)
+        #ndims = downsample.shape
         rtimg = np.float32(downsample)
         
         
         if(fxnum ==0):
             print("Found PDOS Image")
-            try:
-                ds[0x5000,0x2500].value
-            except KeyError:
-                print("No Label")
-                break
-            label = ds[0x5000,0x2500].value
+            # try:
+            #     ds[0x5000,0x2500].value
+            # except KeyError:
+            #     print("No Label")
+            #     break
+            # label = ds[0x5000,0x2500].value
             npfileout = "PDOS_G" + str(int(np.rint(gantryang))) + "_" + str(int(aqdata))
             arrout = os.path.join(RIpath, npfileout)
             print("Saving PDOS Image "+ str(arrout))
@@ -70,7 +113,8 @@ def SortRTIMAGE(RIpath,Ndownsample):
             arrout = os.path.join(RIpath, npfileout)
             print("Saving RT Image "+ str(arrout))
             np.savez_compressed(arrout,rtimg)
-        
+
+       
     #Clean up dicom files 
     """
     print("Clean up DICOM files")
@@ -79,9 +123,9 @@ def SortRTIMAGE(RIpath,Ndownsample):
     """
     return
 
-
+"""
 # Main loop 
-Basepath = 'P:\Image_Prediction\PatientList\\31171124'
+Basepath = 'P:\Image_Prediction\PatientData'
 MRNs = os.listdir(Basepath)
 #Factor with which to downsample EPID images are 1280x1280 
 Ndownsample = 5
@@ -91,4 +135,15 @@ for i in range(0,len(MRNs)):
     RTIpath = os.path.join(Basepath,'RTIMAGE')
     print(RTIpath)
     SortRTIMAGE(RTIpath,Ndownsample)
-# %%
+"""
+
+Basepath = 'P:\Image_Prediction\PatientData\\19136878'
+MRNs = os.listdir(Basepath)
+#Factor with which to downsample EPID images are 1280x1280 
+Ndownsample = 5
+
+#RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
+#RTIpath = os.path.join(Basepath,'RTIMAGE')
+#print(RTIpath)
+SortRTIMAGE(Basepath,Ndownsample)
+
