@@ -18,7 +18,7 @@ def ray_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
 
     #find the outerEdge of the CT dimentions  
     CTEdge = origin-voxSize*voxDim/2.0
-
+    
     #Define Edges in X,Y,Z
     Xmin = CTEdge[0]
     Xmax = CTEdge[0]+voxDimX*(voxSizeX-1)
@@ -208,7 +208,6 @@ def source_rotate(angle,origin):
     return pt_rot
 
 
-
 def EPID_rotate(angle,origin,EPIDpt): 
 
     #input gantry angle in degrees
@@ -223,8 +222,7 @@ def EPID_rotate(angle,origin,EPIDpt):
     return pt_rot
 
 
-
-def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
+def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize):
 
     matrixsum = 0
     # Epsilon value for rounding errors associated with alphaMAX 
@@ -238,22 +236,31 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
     voxSizeZ = voxSize[2]
 
     #find the outerEdge of the CT dimentions  
-    CTEdge = origin-voxSize*voxDim/2.0
-
-    #Define Edges in X,Y,Z
-    Xmin = CTEdge[0]
-    Xmax = CTEdge[0]+voxDimX*(voxSizeX-1)
-    
+    CTEdgeX = CTinfo[0]
+    CTEdgeY = CTinfo[1]
+    CTEdgeZ = CTinfo[2]
+        
     # CBCT scan is a right handed coordinate system with +Y pointing down 
     #change the ordering in Y. More negative is larger ?? 
-    Ymin = CTEdge[1]
-    Ymax = CTEdge[1]+voxDimY*(voxSizeY-1)
-    #Ymax = CTEdge[1]+voxDimY*voxSizeY
+    
+    Xmin = CTEdgeX
+    Xmax = CTEdgeX+voxDimX*(voxSizeX-1)
 
-    Zmin = CTEdge[2]
-    Zmax = CTEdge[2]+voxDimZ*(voxSizeZ-1)
-    #Zmax = CTEdge[2]+voxDimZ*voxSizeZ
+    Ymin = CTEdgeY
+    Ymax = CTEdgeY+voxDimY*(voxSizeY-1)
+   
+    Zmin = CTEdgeZ
+    Zmax = CTEdgeZ+voxDimZ*(voxSizeZ-1)
+    #####################################
+    ############################
+    #swap edges for a feet first scan, Y does not change
+    
+    # Xmax = CTEdgeX
+    # Xmin = CTEdgeX-voxDimX*(voxSizeX-1)
 
+    # Zmax = CTEdgeZ
+    # Zmin = CTEdgeZ-voxDimZ*(voxSizeZ-1)
+    
     sourceCTX = sourceCT[0]
     sourceCTY = sourceCT[1]
     sourceCTZ = sourceCT[2]
@@ -397,10 +404,12 @@ def new_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
     while(alphaR < alphaMAX-ep):
        
         dist = np.sqrt(np.square((alphaR-alphaC)*rayX)+ np.square((alphaR-alphaC)*rayY) +  np.square((alphaR-alphaC)*rayZ)) 
-        if( imagearr[izcnt,iycnt,ixcnt] <= 0):
-            matrixsum = matrixsum+dist*(0.001*imagearr[izcnt,iycnt,ixcnt]+1)/10.0   
-        else:
-            matrixsum = matrixsum+dist*(0.00037*imagearr[izcnt,iycnt,ixcnt]+1)/10.0
+        
+        if (dist < 10.0):
+            if( imagearr[izcnt,iycnt,ixcnt] <= 0):
+                matrixsum = matrixsum+dist*(0.001*imagearr[izcnt,iycnt,ixcnt]+1)/10.0   
+            else:
+                matrixsum = matrixsum+dist*(0.00037*imagearr[izcnt,iycnt,ixcnt]+1)/10.0
         # approximate with Bi linear function to estimte the radiolocal path length
         #print("Dist " + str(dist))
         #print("Alpha Diff " + str(alphaR-alphaC))
