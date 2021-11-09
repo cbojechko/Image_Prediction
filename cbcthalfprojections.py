@@ -10,10 +10,10 @@ import rays
 
 def MakeCBCTProjection(RIpath,CBCTpath):
     
-    #npfile = glob.glob(str(CBCTpath) + '\cbctproj*.npz')
-    #if(npfile):
-    #    print("Projection files exists skip making new ones")
-    #    return
+    # npfile = glob.glob(str(CBCTpath) + '\halfproj*.npz')
+    # if(npfile):
+    #     print("Projection files exists skip making new ones")
+    #     return
     
     # Set parameters for ray tracing 
     SID = 1540 #source to imager distance
@@ -26,8 +26,8 @@ def MakeCBCTProjection(RIpath,CBCTpath):
 
     #rayvec = np.zeros((1280,1280))
     rayvec = np.zeros((nz,nx))
-    zstep = 430/nz
-    xstep = 430/nx
+    zstep = 279/nz
+    xstep = 279/nx
 
     epidEdgeX = -nx/2*xstep
     epidEdgeZ = -nz/2*zstep
@@ -82,7 +82,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
             print("Gantry angle for projection " + str(int(gantryang)))
             rotsource = rays.source_rotate(gantryang,origin)
 
-            Projex = CBCTpath + "\cbctprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j])) + ".npz"
+            Projex = CBCTpath + "\halfprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j])) + ".npz"
             print("Projection file " +str(Projex))
             if(os.path.exists(Projex)):
                 print("Projection File exists")
@@ -91,13 +91,13 @@ def MakeCBCTProjection(RIpath,CBCTpath):
             
             for kk in range(1,nx):
                 for ll in range(1,nz):
-                    PointOnEPID = np.array([(epidEdgeX+kk*xstep),SID-SAD,(epidEdgeZ+ll*zstep)]) 
+                    PointOnEPID = np.array([(epidEdgeX+kk*xstep),0.0,(epidEdgeZ+ll*zstep)]) 
                     ray= rays.EPID_rotate(gantryang,origin,PointOnEPID)-rotsource
                     # Double check the indexing 
                     rayvec[nz-ll,kk-1] = rays.new_trace(image,CTinfo,rotsource,ray,voxDim,voxSize)
             
             cbctproj = np.float32(rayvec)
-            projfileout = "cbctprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j]))
+            projfileout = "halfprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j]))
             print("Save npz    " + projfileout)
             arrout = os.path.join(CBCTpath, projfileout)
             #print("Saving Projection "+ str(arrout))
@@ -117,7 +117,7 @@ for i in range(0,len(MRNs)):
 
 """
 # Single patient 
-Basepath = 'P:\\Image_Prediction\\Marginal\\04657615'
+Basepath = 'P:\\Image_Prediction\\PatientData\\31202711'
 MRNs = os.listdir(Basepath)
 
 
