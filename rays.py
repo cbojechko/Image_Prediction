@@ -1,6 +1,6 @@
 # Algorithm taken from Siddon Med Phys 1985
 
-# New trace is based on Lemahien 1998 
+# New trace is based on Lemahien 1998 and J. You 2000
 
 
 import numpy as np
