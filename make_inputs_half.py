@@ -6,7 +6,10 @@ import re
 import PIL
 from pathlib import Path
 from PIL import Image
+##############
 
+
+#################
 def MakeJPEG(Patpath,pcntr):
 
     cntr = 1

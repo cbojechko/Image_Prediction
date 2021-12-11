@@ -8,7 +8,7 @@ import SimpleITK as sitk
 import glob
 import re
 from scipy import interpolate
-
+#########################
 def SortRTIMAGE(Basepath,Ndownsample):
 
     

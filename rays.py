@@ -1,8 +1,10 @@
 # Algorithm taken from Siddon Med Phys 1985
 
+# New trace is based on Lemahien 1998 
+
 
 import numpy as np
-
+# OLD DEPCREATED FCN, much slower that new_trace. 
 def ray_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
 
     #value to return
@@ -190,7 +192,7 @@ def ray_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
     return matrixsum
 
 
-
+#Function to rotate the source based on the gantry angle. In global co-ordinates
 def source_rotate(angle,origin): 
 
     #hardcode the vector from the origin to the source at gantry 0
@@ -207,7 +209,7 @@ def source_rotate(angle,origin):
 
     return pt_rot
 
-
+# Rotate the position of the EPID pixels in global co-ordinates 
 def EPID_rotate(angle,origin,EPIDpt): 
 
     #input gantry angle in degrees
@@ -221,8 +223,8 @@ def EPID_rotate(angle,origin,EPIDpt):
 
     return pt_rot
 
-
-def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize):
+#Main function to ray trace point source to EPID pixel.  
+def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
 
     matrixsum = 0
     # Epsilon value for rounding errors associated with alphaMAX 
@@ -241,25 +243,29 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize):
     CTEdgeZ = CTinfo[2]
         
     # CBCT scan is a right handed coordinate system with +Y pointing down 
-    #change the ordering in Y. More negative is larger ?? 
+    #change the ordering in Y. 
     
-    Xmin = CTEdgeX
-    Xmax = CTEdgeX+voxDimX*(voxSizeX-1)
-
+   
     Ymin = CTEdgeY
     Ymax = CTEdgeY+voxDimY*(voxSizeY-1)
    
-    Zmin = CTEdgeZ
-    Zmax = CTEdgeZ+voxDimZ*(voxSizeZ-1)
-    #####################################
-    ############################
     #swap edges for a feet first scan, Y does not change
     
-    # Xmax = CTEdgeX
-    # Xmin = CTEdgeX-voxDimX*(voxSizeX-1)
+    
+    if(headfirst):
+        Xmin = CTEdgeX
+        Xmax = CTEdgeX+voxDimX*(voxSizeX-1)
 
-    # Zmax = CTEdgeZ
-    # Zmin = CTEdgeZ-voxDimZ*(voxSizeZ-1)
+
+        Zmin = CTEdgeZ
+        Zmax = CTEdgeZ+voxDimZ*(voxSizeZ-1)
+    else: 
+        Xmax = CTEdgeX
+        Xmin = CTEdgeX-voxDimX*(voxSizeX-1)
+
+        Zmax = CTEdgeZ
+        Zmin = CTEdgeZ-voxDimZ*(voxSizeZ-1)
+   
     
     sourceCTX = sourceCT[0]
     sourceCTY = sourceCT[1]
@@ -306,7 +312,7 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize):
         #print("Ray does not intersect CT")
         return matrixsum
     
-    # find the range of indicices for intersections 
+    #find the range of indicices for intersections 
     #Setting the floor and ceiling seems to be nessecary to keep indicies within lim
     
     if (rayX > 0):
@@ -354,7 +360,7 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize):
     alphaXdel = voxDimX
     alphaYdel = voxDimY
     alphaZdel = voxDimZ
-    # Need to figure out how to order the alphas based on direction of ray 
+     
     if(rayX != 0.0):
         alphaXmin =(Xmin+voxDimX*(ixmin) - sourceCTX)/rayX
         alphaXmax =(Xmin+voxDimX*(ixmax) - sourceCTX)/rayX
@@ -411,6 +417,7 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize):
             else:
                 matrixsum = matrixsum+dist*(0.00037*imagearr[izcnt,iycnt,ixcnt]+1)/10.0
         # approximate with Bi linear function to estimte the radiolocal path length
+        
         #print("Dist " + str(dist))
         #print("Alpha Diff " + str(alphaR-alphaC))
         #print("HU " + str(imagearr[izcnt,iycnt,ixcnt]) + " Electron Density " + str(0.001*imagearr[izcnt,iycnt,ixcnt]+1))
