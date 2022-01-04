@@ -154,8 +154,12 @@ for i in range(0,len(MRNs)):
     print(RTIpath)
     SortRTIMAGE(RTIpath,Ndownsample)
 """
-
-Basepath = 'P:\Image_Prediction\PatientData\\31148288'
+fid = open(os.path.join('.', 'MRN.txt'))
+for _ in range(8):
+    MRN = fid.readline()
+MRN = MRN.strip('\n')
+fid.close()
+Basepath = 'P:\Image_Prediction\PatientData\\' + MRN
 MRNs = os.listdir(Basepath)
 #Factor with which to downsample EPID images are 1280x1280 
 Ndownsample = 5
