@@ -103,17 +103,18 @@ def MakeCBCTProjection(RIpath,CBCTpath):
             #print("Saving Projection "+ str(arrout))
             np.savez_compressed(arrout,cbctproj)
 
+def main():
+    # Main loop
+    Basepath = 'P:\Image_Prediction\Marginal'
+    MRNs = os.listdir(Basepath)
 
-# Main loop 
-Basepath = 'P:\Image_Prediction\Marginal'
-MRNs = os.listdir(Basepath)
-
-for i in range(0,len(MRNs)):
-    RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
-    CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
-    print(RTIpath)
-    MakeCBCTProjection(RTIpath,CBCTpath)
-
+    for i in range(0,len(MRNs)):
+        RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
+        CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
+        print(RTIpath)
+        MakeCBCTProjection(RTIpath,CBCTpath)
+if __name__ == '__main__':
+    pass
 """
 # Single patient
 fid = open(os.path.join('.', 'MRN.txt'))
