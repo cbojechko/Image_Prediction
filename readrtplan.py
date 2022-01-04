@@ -70,7 +70,12 @@ def CreateArcVector(dicom,nctrlpt,idx):
 
 #################################################################################################################
 #open a RP plan
-RPpath = os.path.join('P:\Image_Prediction','11567988','plan')
+fid = open(os.path.join('.', 'MRN.txt'))
+for _ in range(6):
+    MRN = fid.readline()
+MRN = MRN.strip('\n')
+fid.close()
+RPpath = os.path.join('P:\Image_Prediction', MRN,'plan')
 
 for entry in os.listdir(RPpath):
     if os.path.isfile(os.path.join(RPpath, entry)):
