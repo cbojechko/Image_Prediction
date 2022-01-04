@@ -28,7 +28,12 @@ def SortShiftCBCT(CTpath):
     #path to folder with Dicom files 
     Basepath = os.path.dirname(CTpath)
     #print('base ' + str(Basepath))
-    #Basepath = 'P:\\Image_Prediction\\PatientData\\17083296'
+    # fid = open(os.path.join('.', 'MRN.txt'))
+    # for _ in range(7):
+    #     MRN = fid.readline()
+    # MRN = MRN.strip('\n')
+    # fid.close()
+    #Basepath = 'P:\\Image_Prediction\\PatientData\\MRN'
     #CTpath =  os.path.join(Basepath,'CT') 
     REpath =  os.path.join(Basepath,'REG') 
     RPpath =  os.path.join(Basepath,'RTPLAN') 
