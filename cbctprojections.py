@@ -114,10 +114,12 @@ for i in range(0,len(MRNs)):
     print(RTIpath)
     MakeCBCTProjection(RTIpath,CBCTpath)
 
-
 """
-# Single patient 
-Basepath = 'P:\\Image_Prediction\\Marginal\\04657615'
+# Single patient
+fid = open(os.path.join('.', 'MRN.txt'))
+MRN = fid.readline().strip('\n')
+fid.close()
+Basepath = 'P:\\Image_Prediction\\Marginal\\' + MRN
 MRNs = os.listdir(Basepath)
 
 
