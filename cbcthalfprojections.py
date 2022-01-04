@@ -117,7 +117,7 @@ for i in range(0,len(MRNs)):
 
 """
 # Single patient 
-Basepath = 'P:\\Image_Prediction\\PatientData\\31202711'
+Basepath = 'P:\\Image_Prediction\\PatientData\\'
 MRNs = os.listdir(Basepath)
 
 
