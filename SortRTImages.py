@@ -10,9 +10,6 @@ import re
 from scipy import interpolate
 #########################
 def SortRTIMAGE(Basepath,Ndownsample):
-
-    
-    
     #Search for a dicom files
     RIpath = os.path.join(Basepath,'RTIMAGE')
     RPpath = os.path.join(Basepath,'RTPLAN')
@@ -154,18 +151,23 @@ for i in range(0,len(MRNs)):
     print(RTIpath)
     SortRTIMAGE(RTIpath,Ndownsample)
 """
-fid = open(os.path.join('.', 'MRN.txt'))
-for _ in range(8):
-    MRN = fid.readline()
-MRN = MRN.strip('\n')
-fid.close()
-Basepath = 'P:\Image_Prediction\PatientData\\' + MRN
-MRNs = os.listdir(Basepath)
-#Factor with which to downsample EPID images are 1280x1280 
-Ndownsample = 5
 
-#RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
-#RTIpath = os.path.join(Basepath,'RTIMAGE')
-#print(RTIpath)
-SortRTIMAGE(Basepath,Ndownsample)
 
+def main():
+    fid = open(os.path.join('.', 'MRN.txt'))
+    for _ in range(8):
+        MRN = fid.readline()
+    MRN = MRN.strip('\n')
+    fid.close()
+    Basepath = 'P:\Image_Prediction\PatientData\\' + MRN
+    MRNs = os.listdir(Basepath)
+    #Factor with which to downsample EPID images are 1280x1280
+    Ndownsample = 5
+
+    #RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
+    #RTIpath = os.path.join(Basepath,'RTIMAGE')
+    #print(RTIpath)
+    SortRTIMAGE(Basepath,Ndownsample)
+
+if __name__ == '__main__':
+    pass

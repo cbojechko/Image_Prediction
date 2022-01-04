@@ -26,7 +26,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
 
     #rayvec = np.zeros((1280,1280))
     rayvec = np.zeros((nz,nx))
-    zstep = 430/nz
+    zstep = 430/nz  # Why is this 430?
     xstep = 430/nx
 
     epidEdgeX = -nx/2*xstep
@@ -113,6 +113,8 @@ def main():
         CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
         print(RTIpath)
         MakeCBCTProjection(RTIpath,CBCTpath)
+
+
 if __name__ == '__main__':
     pass
 """
