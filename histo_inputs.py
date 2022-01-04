@@ -12,7 +12,7 @@ import PIL
 
 def Histdata(Basepath):
     
-    #Basepath = 'P:\Image_Prediction\PatientList\\13281530'
+    #Basepath = 'P:\Image_Prediction\PatientList\\'
     RIpath = os.path.join(Basepath,'RTIMAGE')
     myCTpath = os.path.join(Basepath,'CT')
     Flupath = os.path.join(Basepath,'Fluence')
@@ -82,7 +82,11 @@ def Histdata(Basepath):
 # Main loop 
 Basepath = 'P:\Image_Prediction\PatientData'
 MRNs = os.listdir(Basepath)
-#Basepath = 'P:\Image_Prediction\PatientList\\13281530'
+# fid = open(os.path.join('.', 'MRN.txt'))
+# fid.readline()
+# MRN = fid.readline().strip('\n')
+# fid.close()
+#Basepath = 'P:\Image_Prediction\PatientList\\' + MRN
 #QApatdata(Basepath)
 fileoutpath = str(Basepath) + '\\fileout.txt'
 fileout = open(fileoutpath, 'w')
