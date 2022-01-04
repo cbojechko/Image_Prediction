@@ -13,7 +13,12 @@ from scipy import interpolate
 from scipy import ndimage
 
 #open a RI image
-#FLUpath = os.path.join('P:\Image_Prediction','04455192','Fluence')
+fid = open(os.path.join('.', 'MRN.txt'))
+for _ in range(5):
+    MRN = fid.readline()
+MRN = MRN.strip('\n')
+fid.close()
+#FLUpath = os.path.join('P:\Image_Prediction', MRN,'Fluence')
 #FLUpath = os.path.join('P:\Image_Prediction','SingleFx')
 
 def FluNP(Flupath):
@@ -35,7 +40,7 @@ def FluNP(Flupath):
     #Search for a numpy file 
     FLUfiles = glob.glob(str(Flupath) + '\*.optimal_fluence')
 
-    #Flupath = os.path.join('P:\Image_Prediction','04455192','Fluence')
+    #Flupath = os.path.join('P:\Image_Prediction', MRN,'Fluence')
 
     for file in FLUfiles:
 
