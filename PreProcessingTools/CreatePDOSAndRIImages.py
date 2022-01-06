@@ -13,20 +13,16 @@ from DicomRTTool.ReaderWriter import plot_scroll_Image
 #########################
 
 
-def CreatePDOS_and_RI_Images(Basepath,Ndownsample):
+def CreatePDOS_and_RI_Images(Basepath, Ndownsample):
     #Search for a dicom files
     RIpath = os.path.join(Basepath,'RTIMAGE')
     RPpath = os.path.join(Basepath,'RTPLAN')
     RIfiles = glob.glob(str(RIpath) + '\*.dcm')
     RPfile =  glob.glob(str(RPpath) + '\*.dcm')
-    
-    """
-    npfile = glob.glob(str(RIpath) + '\*.npz')
-    if(npfile):
-         print("Numpy files exists skip making new ones")
-         return
-    """
-    print()
+
+    if glob.glob(str(RIpath) + '\*.npz'):
+        print("Numpy files exists skip making new ones")
+        return None
     dr = pydicom.read_file(RPfile[0])  # Read the plan file
     rbs = dr.FractionGroupSequence[0].ReferencedBeamSequence
     
