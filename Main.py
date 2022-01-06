@@ -27,5 +27,5 @@ CBCTpath = os.path.join(basepath, 'CT')
 if True:
     #from PreProcessingTools.CreateCBCT import create_CBCT
     #create_CBCT(CBCTpath)
-    from cbctprojections import MakeCBCTProjection
+    from cbcthalfprojections import MakeCBCTProjection
     MakeCBCTProjection(RIpath=RTIpath, CBCTpath=CBCTpath)
