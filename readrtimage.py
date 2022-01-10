@@ -9,7 +9,12 @@ import SimpleITK as sitk
 
 
 #open a RI image
-RIpath = os.path.join('P:\Image_Prediction','04455192','RTIMAGE')
+fid = open(os.path.join('.', 'MRN.txt'))
+for _ in range(5):
+    MRN = fid.readline()
+MRN = MRN.strip('\n')
+fid.close()
+RIpath = os.path.join('P:\Image_Prediction', MRN,'RTIMAGE')
 
 
 for entry in os.listdir(RIpath):

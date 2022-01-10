@@ -15,8 +15,8 @@ import SimpleITK as sitk
 from DicomRTTool.ReaderWriter import DicomReaderWriter
 
 # path to CT image 
-patpath = os.path.join('P:\Image_Prediction','11657988')
-myCTpath = os.path.join('P:\Image_Prediction','11657988','frac2cbct')
+patpath = os.path.join('P:\Image_Prediction')
+myCTpath = os.path.join('P:\Image_Prediction','frac2cbct')
 
 print('path ' + myCTpath)
 #%%

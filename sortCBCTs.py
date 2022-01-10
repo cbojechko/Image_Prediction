@@ -18,9 +18,14 @@ import rays
 import time
 import pydicom
 
-# path to CT image 
-patpath = os.path.join('P:\Image_Prediction','04455192')
-myCTpath = os.path.join('P:\Image_Prediction','04455192','CBCTs')
+# path to CT image
+fid = open(os.path.join('.', 'MRN.txt'))
+for _ in range(5):
+    MRN = fid.readline()
+MRN = MRN.strip('\n')
+fid.close()
+patpath = os.path.join('P:\Image_Prediction', MRN)
+myCTpath = os.path.join('P:\Image_Prediction', MRN, 'CBCTs')
 
 print('path ' + myCTpath)
 

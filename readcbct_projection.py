@@ -21,9 +21,14 @@ from DicomRTTool.ReaderWriter import DicomReaderWriter
 import rays
 import time
 
-# path to CT image 
-patpath = os.path.join('P:\Image_Prediction','Testing','04455192')
-myCTpath = os.path.join('P:\Image_Prediction','Testing','04455192','CBCT')
+# path to CT image
+fid = open(os.path.join('.', 'MRN.txt'))
+for _ in range(5):
+    MRN = fid.readline()
+MRN = MRN.strip('\n')
+fid.close()
+patpath = os.path.join('P:\Image_Prediction', 'Testing', MRN)
+myCTpath = os.path.join('P:\Image_Prediction', 'Testing', MRN, 'CBCT')
 
 print('path ' + myCTpath)
 

@@ -2,10 +2,54 @@ import os
 import numpy as np
 import pydicom
 import matplotlib.pyplot as plt
-import SimpleITK as sitk
+from DicomRTTool.ReaderWriter import plot_scroll_Image
+from tqdm import tqdm
 import glob
 import re
 import rays
+from threading import Thread
+from multiprocessing import cpu_count
+from queue import *
+
+
+def rayvec_worker(A):
+    q, pbar, kwargs = A
+    point_maker = RunRayVec(**kwargs)
+    while True:
+        item = q.get()
+        if item is None:
+            break
+        else:
+            point_maker.new_trace(**item)
+        pbar.update()
+        q.task_done()
+
+
+class RunRayVec(object):
+    def __init__(self, SID, SAD, epidEdgeX, xstep, epidEdgeZ, zstep, image, CTinfo,
+                 rotsource, voxDim, voxSize, rayvec, gantryangle, origin, nz, nx):
+        self.image = image
+        self.CTinfo = CTinfo
+        self.voxDim = voxDim
+        self.voxSize = voxSize
+        self.SID = SID
+        self.SAD = SAD
+        self.epidEdgeX = epidEdgeX
+        self.epidEdgeZ = epidEdgeZ
+        self.xstep, self.zstep = xstep, zstep
+        self.rayvec = rayvec
+        self.gantryangle, self.origin, self.rotsource = gantryangle, origin, rotsource
+        self.nz, self.nx = nz, nx
+
+    def new_trace(self, ll):
+        for kk in range(1, self.nx):
+            PointOnEPID = np.array([(self.epidEdgeX + kk * self.xstep), self.SID - self.SAD,
+                                    (self.epidEdgeZ + ll * self.zstep)])
+            ray = rays.EPID_rotate(self.gantryangle, self.origin, PointOnEPID) - self.rotsource
+            # Double check the indexing
+            self.rayvec[self.nz - ll, kk - 1] = rays.new_trace(self.image, self.CTinfo,
+                                                               self.rotsource, ray, self.voxDim,
+                                                               self.voxSize)
 
 
 def MakeCBCTProjection(RIpath,CBCTpath):
@@ -26,7 +70,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
 
     #rayvec = np.zeros((1280,1280))
     rayvec = np.zeros((nz,nx))
-    zstep = 430/nz
+    zstep = 430/nz  # Why is this 430?
     xstep = 430/nx
 
     epidEdgeX = -nx/2*xstep
@@ -76,48 +120,78 @@ def MakeCBCTProjection(RIpath,CBCTpath):
         voxSize = npcbct['voxSize']
         #Set the origin to be used for the source to zero 
         origin = [0.0 , 0.0, 0.0]
-        
+
         print("Make projection for Fraction " + str(int(fxs[j])) + " On " + str(int(dates[j])) )
         for gantryang in gangs:
             print("Gantry angle for projection " + str(int(gantryang)))
             rotsource = rays.source_rotate(gantryang,origin)
-
+            raytracer = rays.RayTracer(image_array=image, CTinfo=CTinfo,
+                                       sourceCT=rotsource, voxelDimension=voxDim,
+                                       voxelSize=voxSize, headfirst=True)
             Projex = CBCTpath + "\cbctprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j])) + ".npz"
             print("Projection file " +str(Projex))
             if(os.path.exists(Projex)):
                 print("Projection File exists")
-                continue
+                # continue
             # # Scan over EPID panel range
-            
+            thread_count = int(cpu_count()*.8)
+            q = Queue(maxsize=thread_count)
+            kwargs = {'SID': SID, 'SAD': SAD, 'epidEdgeX': epidEdgeX,
+                      'epidEdgeZ': epidEdgeZ, 'xstep': xstep, 'zstep': zstep,
+                      'image': image, 'CTinfo': CTinfo, 'rotsource': rotsource,
+                      'voxDim': voxDim, 'voxSize': voxSize, 'rayvec': rayvec,
+                      'gantryangle': gantryang, 'origin': origin, 'nz':nz,
+                      'nx': nx}
+            pbar = tqdm(total=nx*nz, desc='Making ray trace')
+            A = (q, pbar, kwargs)
+            threads = []
+            for worker in range(thread_count):
+                t = Thread(target=rayvec_worker, args=(A,))
+                t.start()
+                threads.append(t)
             for kk in range(1,nx):
                 for ll in range(1,nz):
-                    PointOnEPID = np.array([(epidEdgeX+kk*xstep),SID-SAD,(epidEdgeZ+ll*zstep)]) 
-                    ray= rays.EPID_rotate(gantryang,origin,PointOnEPID)-rotsource
-                    # Double check the indexing 
-                    rayvec[nz-ll,kk-1] = rays.new_trace(image,CTinfo,rotsource,ray,voxDim,voxSize)
-            
+                    PointOnEPID = np.array([(epidEdgeX+kk*xstep), SID-SAD, (epidEdgeZ+ll*zstep)])
+                    ray = rays.EPID_rotate(gantryang,origin,PointOnEPID)-rotsource
+                    # Double check the indexing
+                    pbar.update()
+                    rayvec[nz - ll, kk - 1] = raytracer.new_trace(ray)
+                    # rayvec[nz-ll,kk-1] = rays.new_trace(image,CTinfo,rotsource,ray,voxDim,voxSize)
+            # for ll in range(1,nz):
+            #     item = {'ll': ll}
+            #     q.put(item)
+            for i in range(thread_count):
+                q.put(None)
+            for t in threads:
+                t.join()
             cbctproj = np.float32(rayvec)
             projfileout = "cbctprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j]))
             print("Save npz    " + projfileout)
             arrout = os.path.join(CBCTpath, projfileout)
             #print("Saving Projection "+ str(arrout))
             np.savez_compressed(arrout,cbctproj)
+            return None
+
+def main():
+    # Main loop
+    Basepath = 'P:\Image_Prediction\Marginal'
+    MRNs = os.listdir(Basepath)
+
+    for i in range(0,len(MRNs)):
+        RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
+        CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
+        print(RTIpath)
+        MakeCBCTProjection(RTIpath,CBCTpath)
 
 
-# Main loop 
-Basepath = 'P:\Image_Prediction\Marginal'
-MRNs = os.listdir(Basepath)
-
-for i in range(0,len(MRNs)):
-    RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
-    CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
-    print(RTIpath)
-    MakeCBCTProjection(RTIpath,CBCTpath)
-
-
+if __name__ == '__main__':
+    pass
 """
-# Single patient 
-Basepath = 'P:\\Image_Prediction\\Marginal\\04657615'
+# Single patient
+fid = open(os.path.join('.', 'MRN.txt'))
+MRN = fid.readline().strip('\n')
+fid.close()
+Basepath = 'P:\\Image_Prediction\\Marginal\\' + MRN
 MRNs = os.listdir(Basepath)
 
 

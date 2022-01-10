@@ -1,5 +1,6 @@
 import os 
 import numpy as np
+from tqdm import tqdm
 import pydicom
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
@@ -81,7 +82,10 @@ def MakeCBCTProjection(RIpath,CBCTpath):
         for gantryang in gangs:
             print("Gantry angle for projection " + str(int(gantryang)))
             rotsource = rays.source_rotate(gantryang,origin)
-
+            raytracer = rays.RayTracer(image_array=image, CTinfo=CTinfo,
+                                       sourceCT=rotsource, voxelDimension=voxDim,
+                                       voxelSize=voxSize, headfirst=True)
+            pbar = tqdm(total=nx*nz, desc='Making ray trace')
             Projex = CBCTpath + "\halfprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j])) + ".npz"
             print("Projection file " +str(Projex))
             if(os.path.exists(Projex)):
@@ -92,32 +96,36 @@ def MakeCBCTProjection(RIpath,CBCTpath):
             for kk in range(1,nx):
                 for ll in range(1,nz):
                     PointOnEPID = np.array([(epidEdgeX+kk*xstep),0.0,(epidEdgeZ+ll*zstep)]) 
-                    ray= rays.EPID_rotate(gantryang,origin,PointOnEPID)-rotsource
-                    # Double check the indexing 
-                    rayvec[nz-ll,kk-1] = rays.new_trace(image,CTinfo,rotsource,ray,voxDim,voxSize)
-            
+                    ray = rays.EPID_rotate(gantryang, origin, PointOnEPID) - rotsource
+                    pbar.update()
+                    rayvec[nz - ll, kk - 1] = raytracer.new_trace(ray)
             cbctproj = np.float32(rayvec)
             projfileout = "halfprojection" + str(int(fxs[j])) + '_G' + str(int(gantryang)) + "_" + str(int(dates[j]))
             print("Save npz    " + projfileout)
             arrout = os.path.join(CBCTpath, projfileout)
             #print("Saving Projection "+ str(arrout))
             np.savez_compressed(arrout,cbctproj)
+            return None
 
 
-# Main loop 
-Basepath = 'P:\Image_Prediction\Marginal'
-MRNs = os.listdir(Basepath)
+def main():
+    # Main loop
+    Basepath = 'P:\Image_Prediction\Marginal'
+    MRNs = os.listdir(Basepath)
 
-for i in range(0,len(MRNs)):
-    RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
-    CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
-    print(RTIpath)
-    MakeCBCTProjection(RTIpath,CBCTpath)
+    for i in range(0,len(MRNs)):
+        RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
+        CBCTpath = os.path.join(Basepath,MRNs[i],'CT')
+        print(RTIpath)
+        MakeCBCTProjection(RTIpath,CBCTpath)
 
+
+if __name__ == '__main__':
+    pass
 
 """
 # Single patient 
-Basepath = 'P:\\Image_Prediction\\PatientData\\31202711'
+Basepath = 'P:\\Image_Prediction\\PatientData\\'
 MRNs = os.listdir(Basepath)
 
 

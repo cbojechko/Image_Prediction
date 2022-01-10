@@ -8,24 +8,21 @@ import SimpleITK as sitk
 import glob
 import re
 from scipy import interpolate
+from skimage.measure import block_reduce
 from DicomRTTool.ReaderWriter import plot_scroll_Image
 #########################
 
 
-def SortRTIMAGE(Basepath,Ndownsample):
+def CreatePDOS_and_RI_Images(Basepath, Ndownsample):
     #Search for a dicom files
     RIpath = os.path.join(Basepath,'RTIMAGE')
     RPpath = os.path.join(Basepath,'RTPLAN')
     RIfiles = glob.glob(str(RIpath) + '\*.dcm')
     RPfile =  glob.glob(str(RPpath) + '\*.dcm')
-    
-    """
-    npfile = glob.glob(str(RIpath) + '\*.npz')
-    if(npfile):
-         print("Numpy files exists skip making new ones")
-         return
-    """
-    print()
+
+    if glob.glob(str(RIpath) + '\*.npz'):
+        print("Numpy files exists skip making new ones")
+        return None
     dr = pydicom.read_file(RPfile[0])  # Read the plan file
     rbs = dr.FractionGroupSequence[0].ReferencedBeamSequence
     
@@ -131,46 +128,7 @@ def SortRTIMAGE(Basepath,Ndownsample):
             arrout = os.path.join(RIpath, npfileout)
             print("Saving RT Image "+ str(arrout))
             np.savez_compressed(arrout,rtimg)
-
-       
-    #Clean up dicom files 
-    """
-    print("Clean up DICOM files")
-    for files in RIfiles:
-        os.remove(files)  
-    """
     return
-
-"""
-# Main loop 
-Basepath = 'P:\Image_Prediction\Marginal'
-MRNs = os.listdir(Basepath)
-#Factor with which to downsample EPID images are 1280x1280 
-Ndownsample = 5
-#print(MRNs)
-for i in range(0,len(MRNs)):
-    RTIpath = os.path.join(Basepath,MRNs[i])
-    #RTIpath = os.path.join(Basepath,'RTIMAGE')
-    print(RTIpath)
-    SortRTIMAGE(RTIpath,Ndownsample)
-"""
-
-
-def main():
-    fid = open(os.path.join('.', 'MRN.txt'))
-    for _ in range(8):
-        MRN = fid.readline()
-    MRN = MRN.strip('\n')
-    fid.close()
-    Basepath = 'P:\Image_Prediction\PatientData\\' + MRN
-    MRNs = os.listdir(Basepath)
-    #Factor with which to downsample EPID images are 1280x1280
-    Ndownsample = 5
-
-    #RTIpath = os.path.join(Basepath,MRNs[i],'RTIMAGE')
-    #RTIpath = os.path.join(Basepath,'RTIMAGE')
-    #print(RTIpath)
-    SortRTIMAGE(Basepath,Ndownsample)
 
 
 if __name__ == '__main__':

@@ -221,7 +221,204 @@ def EPID_rotate(angle,origin,EPIDpt):
 
     return pt_rot
 
+#Main function to ray trace point source to EPID pixel.
+class RayTracer(object):
+    def __init__(self, image_array, CTinfo, sourceCT, voxelDimension,
+                 voxelSize, headfirst=True):
+        self.image_array = image_array
+        self.voxelDimX, self.voxelDimY, self.voxelDimZ = voxelDimension
+        self.voxelSizeX, self.voxelSizeY, self.voxelSizeZ = voxelSize
+        self.CTEdgeX, self.CTEdgeY, self.CTEdgeZ = CTinfo
+        self.Ymin, self.Ymax = self.CTEdgeY, self.CTEdgeY + self.voxelDimY * (self.voxelSizeY - 1)
+        self.sourceCTX, self.sourceCTY, self.sourceCTZ = sourceCT
+        self.headfirst = headfirst
+        if self.headfirst:
+            self.Xmin = self.CTEdgeX
+            self.Xmax = self.CTEdgeX + self.voxelDimX * (self.voxelSizeX - 1)
 
+            self.Zmin = self.CTEdgeZ
+            self.Zmax = self.CTEdgeZ + self.voxelDimZ * (self.voxelSizeZ - 1)
+        else:
+            self.Xmax = self.CTEdgeX
+            self.Xmin = self.CTEdgeX - self.voxelDimX * (self.voxelSizeX - 1)
+
+            self.Zmax = self.CTEdgeZ
+            self.Zmin = self.CTEdgeZ - self.voxelDimZ * (self.voxelSizeZ - 1)
+
+    def new_trace(self, ray):
+        matrixsum = 0
+        # Epsilon value for rounding errors associated with alphaMAX
+        ep = 1.0e-12
+        # swap edges for a feet first scan, Y does not change
+        rayX = ray[0]
+        rayY = ray[1]
+        rayZ = ray[2]
+
+        # Find the parameteric intersection values
+        alphaXmin = 0.0
+        alphaXmax = 1.0
+
+        alphaYmin = 0.0
+        alphaYmax = 1.0
+
+        alphaZmin = 0.0
+        alphaZmax = 1.0
+
+        if (rayX != 0.0):
+            alphaXmin = (self.Xmin - self.sourceCTX) / rayX
+            alphaXmax = (self.Xmax - self.sourceCTX) / rayX
+
+        if (rayY != 0.0):
+            alphaYmin = (self.Ymin - self.sourceCTY) / rayY
+            alphaYmax = (self.Ymax - self.sourceCTY) / rayY
+
+        if (rayZ != 0.0):
+            alphaZmin = (self.Zmin - self.sourceCTZ) / rayZ
+            alphaZmax = (self.Zmax - self.sourceCTZ) / rayZ
+
+        alphaMIN = max(0, min(alphaXmin, alphaXmax), min(alphaYmin, alphaYmax), min(alphaZmin, alphaZmax))
+        alphaMAX = min(1, max(alphaXmin, alphaXmax), max(alphaYmin, alphaYmax), max(alphaZmin, alphaZmax))
+        # print(" Alpha MIN " + str(alphaMIN) + " alphaMAX " + str(alphaMAX))
+        # print("Alpha min intersections")
+        # print(" x " + str(sourceCTX+alphaMIN*rayX) + " y " + str(sourceCTY+alphaMIN*rayY) + " z " + str(sourceCTZ+alphaMIN*rayZ))
+
+        # print("Alpha max intersections")
+        # print(" x " + str(sourceCTX+alphaMAX*rayX) + " y " + str(sourceCTY+alphaMAX*rayY) + " z " + str(sourceCTZ+alphaMAX*rayZ))
+
+        if (alphaMAX < alphaMIN):
+            # print("Ray does not intersect CT")
+            return matrixsum
+
+        # find the range of indicices for intersections
+        # Setting the floor and ceiling seems to be nessecary to keep indicies within lim
+
+        if (rayX > 0):
+            ixmin = int(np.ceil(self.voxelSizeX - (self.Xmax - alphaMIN * rayX - self.sourceCTX) / self.voxelDimX)) - 1
+            ixmax = int(np.floor(1.0 + (self.sourceCTX + alphaMAX * rayX - self.Xmin) / self.voxelDimX)) - 1
+            # print(" X imin arg " + str((Xmax - alphaMIN*rayX-sourceCTX)/self.voxelDimX))
+            # print(" X imax arg " + str( (sourceCTX + alphaMAX*rayX-Xmin)/self.voxelDimX))
+        else:
+            ixmin = int(np.ceil(self.voxelSizeX - (self.Xmax - alphaMAX * rayX - self.sourceCTX) / self.voxelDimX)) - 1
+            ixmax = int(np.floor(1.0 + (self.sourceCTX + alphaMIN * rayX - self.Xmin) / self.voxelDimX)) - 1
+            # print(" X imin arg " + str(self.voxelSizeX-(self.Xmax -alphaMAX*rayX- sourceCTX)/self.voxelDimX))
+            # print(" X imax arg " + str( 1.0 + ( sourceCTX + alphaMIN*rayX-Xmin )/self.voxelDimX))
+        if (rayY > 0):
+            iymin = int(np.ceil(self.voxelSizeY - (self.Ymax - alphaMIN * rayY - self.sourceCTY) / self.voxelDimY)) - 1
+            iymax = int(np.floor(1.0 + (self.sourceCTY + alphaMAX * rayY - self.Ymin) / self.voxelDimY)) - 1
+            # print("imin arg " + str((Ymax - alphaMIN*rayY-sourceCTY)/self.voxelDimY))
+            # print("imax arg " + str( (sourceCTY + alphaMAX*rayY-Ymin)/self.voxelDimY))
+        else:
+            iymin = int(np.ceil(self.voxelSizeY - (self.Ymax - alphaMAX * rayY - self.sourceCTY) / self.voxelDimY)) - 1
+            iymax = int(np.floor(1.0 + (self.sourceCTY + alphaMIN * rayY - self.Ymin) / self.voxelDimY)) - 1
+        if (rayZ > 0):
+            izmin = int(np.ceil(self.voxelSizeZ - (self.Zmax - alphaMIN * rayZ - self.sourceCTZ) / self.voxelDimZ))
+            izmax = int(np.floor(1.0 + (self.sourceCTZ + alphaMAX * rayZ - self.Zmin) / self.voxelDimZ))
+        else:
+            izmin = int(np.ceil(self.voxelSizeZ - (self.Zmax - alphaMAX * rayZ - self.sourceCTZ) / self.voxelDimZ))
+            izmax = int(np.floor(1.0 + (self.sourceCTZ + alphaMIN * rayZ - self.Zmin) / self.voxelDimZ))
+
+        # This can happen when ray is close to parrallel and rounded with ceiling and floor
+        if (ixmax < ixmin):
+            ixmax = ixmin
+
+        if (iymax < iymin):
+            iymax = iymin
+
+        if (izmax < izmin):
+            izmax = izmin
+
+        if ((ixmax == self.voxelSizeX and ixmin == self.voxelSizeX) or
+                (iymax == self.voxelSizeY and iymin == self.voxelSizeY) or
+                (izmax == self.voxelSizeZ and izmin == self.voxelSizeZ)):
+            # print("Glancing blow do not trace")
+            return matrixsum
+
+        # Nalpha = (ixmax-ixmin+1)+(iymax-iymin+1)+(izmax-izmin+1)
+        # print("N alpha " + str(Nalpha))
+
+        alphaXdel = self.voxelDimX
+        alphaYdel = self.voxelDimY
+        alphaZdel = self.voxelDimZ
+
+        if (rayX != 0.0):
+            alphaXmin = (self.Xmin + self.voxelDimX * (ixmin) - self.sourceCTX) / rayX
+            alphaXmax = (self.Xmin + self.voxelDimX * (ixmax) - self.sourceCTX) / rayX
+            alphaXdel = self.voxelDimX / np.abs(rayX)
+
+        if (rayY != 0.0):
+            alphaYmin = (self.Ymin + self.voxelDimY * (iymin) - self.sourceCTY) / rayY
+            alphaYmax = (self.Ymin + self.voxelDimY * (iymax) - self.sourceCTY) / rayY
+            alphaYdel = self.voxelDimY / np.abs(rayY)
+
+        if (rayZ != 0.0):
+            alphaZmin = (self.Zmin + self.voxelDimZ * (izmin) - self.sourceCTZ) / rayZ
+            alphaZmax = (self.Zmin + self.voxelDimZ * (izmax) - self.sourceCTZ) / rayZ
+            alphaZdel = self.voxelDimZ / np.abs(rayZ)
+
+        if (rayX < 0):
+            alphaX = alphaXmax
+            ixcnt = ixmax
+        else:
+            alphaX = alphaXmin
+            ixcnt = ixmin
+
+        if (rayY < 0):
+            alphaY = alphaYmax
+            iycnt = iymax
+        else:
+            alphaY = alphaYmin
+            iycnt = iymin
+
+        if (rayZ < 0):
+            alphaZ = alphaZmax
+            izcnt = izmax
+        else:
+            alphaZ = alphaZmin
+            izcnt = izmin
+        # print("iz " + str(izcnt) + " iy "+ str(iycnt) + " ix "+ str(ixcnt) )
+        # alphaR = min(alphaX,alphaY,alphaZ)
+        alphaR = alphaMIN
+        alphaC = alphaMIN
+        idx = 0
+
+        # fileout = open('raynew.txt','w')
+        while (alphaR < alphaMAX - ep):
+
+            dist = np.sqrt(np.square((alphaR - alphaC) * rayX) + np.square((alphaR - alphaC) * rayY) + np.square(
+                (alphaR - alphaC) * rayZ))
+
+            if (dist < 10.0):
+                if (self.image_array[izcnt, iycnt, ixcnt] <= 0):
+                    matrixsum += dist * (0.001 * self.image_array[izcnt, iycnt, ixcnt] + 1) / 10.0
+                else:
+                    matrixsum += dist * (0.00037 * self.image_array[izcnt, iycnt, ixcnt] + 1) / 10.0
+
+            alphaC = alphaR
+            alphaR = min(alphaX + alphaXdel, alphaY + alphaYdel, alphaZ + alphaZdel)
+
+            if (alphaX + alphaXdel <= alphaY + alphaYdel and alphaX + alphaXdel <= alphaZ + alphaZdel):
+                alphaX = alphaX + alphaXdel
+                if (rayX > 0):
+                    ixcnt = ixcnt + 1
+                else:
+                    ixcnt = ixcnt - 1
+            if (alphaY + alphaYdel <= alphaX + alphaXdel and alphaY + alphaYdel <= alphaZ + alphaZdel):
+                alphaY = alphaY + alphaYdel
+                if (rayY > 0):
+                    iycnt = iycnt + 1
+                else:
+                    iycnt = iycnt - 1
+            if (alphaZ + alphaZdel <= alphaX + alphaXdel and alphaZ + alphaZdel <= alphaY + alphaYdel):
+                alphaZ = alphaZ + alphaZdel
+                if (rayZ > 0):
+                    izcnt = izcnt + 1
+                else:
+                    izcnt = izcnt - 1
+            idx = idx + 1
+        # fileout.close()
+        return matrixsum
+
+      
 def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
 
     matrixsum = 0

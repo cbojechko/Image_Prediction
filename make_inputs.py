@@ -112,7 +112,12 @@ for i in range(0,len(MRNs)):
 """
 ######################################################
 # Generate for single patient
-Patpath = 'P:\Image_Prediction\PatientData\\07600869'
+# fid = open(os.path.join('.', 'MRN.txt'))
+# fid.readline()
+# fid.readline()
+# MRN = fid.readline().strip('\n')
+# fid.close()
+Patpath = 'P:\Image_Prediction\PatientData\\'
 #MRNs = os.listdir(Basepath)
 cntr = 228
 #for i in range(0,len(MRNs)):
