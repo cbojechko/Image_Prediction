@@ -7,7 +7,10 @@ from PreProcessingTools.Image_Processors_Module.src.Processors.MakeTFRecordProce
 from tqdm import tqdm
 
 
-def main():
+def evaluate_data():
+    out_path = os.path.join('.', "Data.xlsx")
+    if os.path.exists(out_path):
+        return None
     data_dictionary = {'Image': [], 'EPID': [], 'Transmission': [], 'File': [], 'Patient #': []}
     data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\nifti'
     files = os.listdir(data_path)
@@ -23,9 +26,10 @@ def main():
         data_dictionary['Patient #'].append(file.split('_')[0])
         pbar.update()
     df = pandas.DataFrame(data_dictionary)
-    df.to_excel(os.path.join('.', "Data.xlsx"), index=0)
+    df.to_excel(out_path, index=0)
     return None
 
 
 if __name__ == '__main__':
-    main()
+    pass
+

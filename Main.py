@@ -29,7 +29,11 @@ if False:
     #create_CBCT(CBCTpath)
     from cbcthalfprojections import MakeCBCTProjection
     MakeCBCTProjection(RIpath=RTIpath, CBCTpath=CBCTpath)
-
+"""
+Lets look at the data real quick
+"""
+from PreProcessingTools.EvaluatingData import evaluate_data
+evaluate_data()
 """
 Lets create some .tfrecords from data already made
 """
