@@ -1,10 +1,8 @@
 # Algorithm taken from Siddon Med Phys 1985
 
-# New trace is based on Lemahien 1998 and J. You 2000
-
 
 import numpy as np
-# OLD DEPCREATED FCN, much slower that new_trace. 
+
 def ray_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
 
     #value to return
@@ -192,7 +190,7 @@ def ray_trace(imagearr,origin,sourceCT,ray,voxDim,voxSize):
     return matrixsum
 
 
-#Function to rotate the source based on the gantry angle. In global co-ordinates
+
 def source_rotate(angle,origin): 
 
     #hardcode the vector from the origin to the source at gantry 0
@@ -209,7 +207,7 @@ def source_rotate(angle,origin):
 
     return pt_rot
 
-# Rotate the position of the EPID pixels in global co-ordinates 
+
 def EPID_rotate(angle,origin,EPIDpt): 
 
     #input gantry angle in degrees
@@ -420,7 +418,7 @@ class RayTracer(object):
         # fileout.close()
         return matrixsum
 
-
+      
 def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
 
     matrixsum = 0
@@ -433,36 +431,33 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
     voxSizeX = voxSize[0]
     voxSizeY = voxSize[1]
     voxSizeZ = voxSize[2]
-
+    
     #find the outerEdge of the CT dimentions  
     CTEdgeX = CTinfo[0]
     CTEdgeY = CTinfo[1]
     CTEdgeZ = CTinfo[2]
-        
+    #print(" Vox Size Z " + str(voxSizeZ) + " CT edge Z " + str(CTEdgeZ))
     # CBCT scan is a right handed coordinate system with +Y pointing down 
-    #change the ordering in Y. 
-    
-   
+    #change the ordering in Y. More negative is larger ?? 
     Ymin = CTEdgeY
     Ymax = CTEdgeY+voxDimY*(voxSizeY-1)
-   
-    #swap edges for a feet first scan, Y does not change
-    
     
     if(headfirst):
         Xmin = CTEdgeX
         Xmax = CTEdgeX+voxDimX*(voxSizeX-1)
 
-
         Zmin = CTEdgeZ
         Zmax = CTEdgeZ+voxDimZ*(voxSizeZ-1)
-    else: 
+    else:
+        #####################################
+        ############################
+        #swap edges for a feet first scan, Y does not change
+    
         Xmax = CTEdgeX
         Xmin = CTEdgeX-voxDimX*(voxSizeX-1)
 
         Zmax = CTEdgeZ
         Zmin = CTEdgeZ-voxDimZ*(voxSizeZ-1)
-   
     
     sourceCTX = sourceCT[0]
     sourceCTY = sourceCT[1]
@@ -509,7 +504,7 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
         #print("Ray does not intersect CT")
         return matrixsum
     
-    #find the range of indicices for intersections 
+    # find the range of indicices for intersections 
     #Setting the floor and ceiling seems to be nessecary to keep indicies within lim
     
     if (rayX > 0):
@@ -518,8 +513,8 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
         #print(" X imin arg " + str((Xmax - alphaMIN*rayX-sourceCTX)/voxDimX))
         #print(" X imax arg " + str( (sourceCTX + alphaMAX*rayX-Xmin)/voxDimX))
     else:
-        ixmin = int(np.ceil(voxSizeX-(Xmax -alphaMAX*rayX- sourceCTX)/voxDimX))-1
-        ixmax = int(np.floor(1.0 + ( sourceCTX + alphaMIN*rayX-Xmin )/voxDimX))-1
+        ixmin = int(np.floor(voxSizeX-(Xmax -alphaMAX*rayX- sourceCTX)/voxDimX))-1
+        ixmax = int(np.ceil(1.0 + ( sourceCTX + alphaMIN*rayX-Xmin )/voxDimX))-1
         #print(" X imin arg " + str(voxSizeX-(Xmax -alphaMAX*rayX- sourceCTX)/voxDimX))
         #print(" X imax arg " + str( 1.0 + ( sourceCTX + alphaMIN*rayX-Xmin )/voxDimX))
     if(rayY > 0):
@@ -528,25 +523,31 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
         #print("imin arg " + str((Ymax - alphaMIN*rayY-sourceCTY)/voxDimY))
         #print("imax arg " + str( (sourceCTY + alphaMAX*rayY-Ymin)/voxDimY))
     else:
-        iymin = int(np.ceil(voxSizeY-(Ymax - alphaMAX*rayY-sourceCTY)/voxDimY))-1
-        iymax = int(np.floor(1.0 + ( sourceCTY + alphaMIN*rayY-Ymin )/voxDimY))-1
+        iymin = int(np.floor(voxSizeY-(Ymax - alphaMAX*rayY-sourceCTY)/voxDimY))-1
+        iymax = int(np.ceil(1.0 + ( sourceCTY + alphaMIN*rayY-Ymin )/voxDimY))-1
     if (rayZ > 0):
         izmin = int(np.ceil(voxSizeZ-(Zmax -alphaMIN*rayZ- sourceCTZ)/voxDimZ))
         izmax = int(np.floor(1.0 + ( sourceCTZ + alphaMAX*rayZ-Zmin )/voxDimZ))
     else:
-        izmin = int(np.ceil(voxSizeZ-(Zmax -alphaMAX*rayZ- sourceCTZ)/voxDimZ))
-        izmax = int(np.floor(1.0 + ( sourceCTZ + alphaMIN*rayZ-Zmin )/voxDimZ))
+        izmin = int(np.floor(voxSizeZ-(Zmax -alphaMAX*rayZ- sourceCTZ)/voxDimZ))
+        izmax = int(np.ceil(1.0 + ( sourceCTZ + alphaMIN*rayZ-Zmin )/voxDimZ))
 
-     # This can happen when ray is close to parrallel and rounded with ceiling and floor   
+    #print(" rayX " + str(rayX) + " rayY " + str(rayY) + " rayZ " + str(rayZ) )
+    #print(" ixmin " + str(ixmin) + " ixmax " + str(ixmax) + " iymin " + str(iymin) + " iymax " + str(iymax) + " izmin " + str(izmin) + " izmax " + str(izmax))
+    # This can happen when ray is close to parrallel and rounded with ceiling and floor   
+    
     if(ixmax < ixmin):
+        #print("Parrallel in x")
         ixmax = ixmin
  
     if(iymax < iymin):
+        #print("Parrallel in y")
         iymax = iymin
 
     if(izmax < izmin):
+        #print("Parrallel in z")
         izmax = izmin
-
+    
     if( (ixmax == voxSizeX and ixmin == voxSizeX) or (iymax == voxSizeY and iymin == voxSizeY) or (izmax == voxSizeZ and izmin == voxSizeZ)):
         #print("Glancing blow do not trace")
         return matrixsum
@@ -557,7 +558,7 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
     alphaXdel = voxDimX
     alphaYdel = voxDimY
     alphaZdel = voxDimZ
-     
+    # Need to figure out how to order the alphas based on direction of ray 
     if(rayX != 0.0):
         alphaXmin =(Xmin+voxDimX*(ixmin) - sourceCTX)/rayX
         alphaXmax =(Xmin+voxDimX*(ixmax) - sourceCTX)/rayX
@@ -595,12 +596,22 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
     else:
         alphaZ = alphaZmin
         izcnt = izmin
+    
+    if(iycnt > 511):
+        print("exceeded 511 y " + str(iycnt))
+        iycnt = 511
+    if(izcnt > 511):
+        print("exceeded 511 z " + str(izcnt))
+        izcnt = 511
+    if(ixcnt > 511):
+        print("exceeded 511 x " + str(ixcnt))
+        ixcnt = 511
+    
     #print("iz " + str(izcnt) + " iy "+ str(iycnt) + " ix "+ str(ixcnt) )
     #alphaR = min(alphaX,alphaY,alphaZ)
     alphaR = alphaMIN 
     alphaC = alphaMIN
     idx = 0
-    
     
       
     #fileout = open('raynew.txt','w')
@@ -609,12 +620,20 @@ def new_trace(imagearr,CTinfo,sourceCT,ray,voxDim,voxSize,headfirst=True):
         dist = np.sqrt(np.square((alphaR-alphaC)*rayX)+ np.square((alphaR-alphaC)*rayY) +  np.square((alphaR-alphaC)*rayZ)) 
         
         if (dist < 10.0):
-            if( imagearr[izcnt,iycnt,ixcnt] <= 0):
-                matrixsum += dist*(0.001*imagearr[izcnt,iycnt,ixcnt]+1)/10.0
-            else:
-                matrixsum += dist*(0.00037*imagearr[izcnt,iycnt,ixcnt]+1)/10.0
-        # approximate with Bi linear function to estimte the radiolocal path length
+            if( imagearr[izcnt,iycnt,ixcnt] <= 100):
+                matrixsum = matrixsum+dist*(0.001*imagearr[izcnt,iycnt,ixcnt]+1)/10.0   
+            elif(imagearr[izcnt,iycnt,ixcnt] > 100 and imagearr[izcnt,iycnt,ixcnt] <= 1000):
+                matrixsum = matrixsum+dist*(0.00048*imagearr[izcnt,iycnt,ixcnt]+1.052)/10.0
+            elif(imagearr[izcnt,iycnt,ixcnt] > 1000 and imagearr[izcnt,iycnt,ixcnt] <= 1350):   
+                matrixsum = matrixsum+dist*(0.002309*imagearr[izcnt,iycnt,ixcnt]-0.77657)/10.0
+            elif(imagearr[izcnt,iycnt,ixcnt] > 1350 and imagearr[izcnt,iycnt,ixcnt] <= 7250):   
+                matrixsum = matrixsum+dist*(0.0002*imagearr[izcnt,iycnt,ixcnt]+2.0288)/10.0
+            elif(imagearr[izcnt,iycnt,ixcnt] ):   
+                matrixsum = matrixsum+dist*(0.0005*imagearr[izcnt,iycnt,ixcnt]+0.618)/10.0
         
+        #if( imagearr[izcnt,iycnt,ixcnt] > 1000):
+            #print(imagearr[izcnt,iycnt,ixcnt])
+        # approximate with Bi linear function to estimte the radiological path length
         #print("Dist " + str(dist))
         #print("Alpha Diff " + str(alphaR-alphaC))
         #print("HU " + str(imagearr[izcnt,iycnt,ixcnt]) + " Electron Density " + str(0.001*imagearr[izcnt,iycnt,ixcnt]+1))
