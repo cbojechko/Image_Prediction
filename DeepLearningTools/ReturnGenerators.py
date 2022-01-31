@@ -3,7 +3,7 @@ import os
 from DeepLearningTools.Data_Generators.TFRecord_to_Dataset_Generator import DataGeneratorClass
 import DeepLearningTools.Data_Generators.Image_Processors_Module.src.Processors.TFDataSetProcessors as Processors
 from PlotScrollNumpyArrays.Plot_Scroll_Images import plot_scroll_Image
-import matplotlib.pyplot as plt
+import tensorflow as tf
 
 
 def get_mean_std(train_generator):
@@ -13,11 +13,14 @@ def get_mean_std(train_generator):
     for i in range(len(train_generator)):
         print(i)
         x, y = next(iter_generator)
-        temp_values = x[0][y[0] == 1]
-        if values is None:
-            values = temp_values
-        else:
-            values = np.concatenate([values, temp_values])
+        print(tf.reduce_max(x[0][..., 0]))
+        print(tf.reduce_max(x[0][..., 1]))
+        print(tf.reduce_max(y[0][..., 0]))
+        #temp_values = x[0][y[0] == 1]
+        #if values is None:
+        #    values = temp_values
+        #else:
+        #    values = np.concatenate([values, temp_values])
     return None
 
 
@@ -30,8 +33,7 @@ def return_train_generator(records_path):
         {'shuffle': len(train_generator)//3},
         {'batch': 4}, {'repeat'}
     ]
-    train_generator.compile_data_set(image_processors=processors, debug=True)
-    x, y = next(iter(train_generator.data_set))
+    train_generator.compile_data_set(image_processors=processors, debug=False)
     return train_generator
 
 
@@ -61,5 +63,6 @@ def return_generators():
 
 
 if __name__ == '__main__':
-    return_generators()
+    train_generator = return_generators()
+    get_mean_std(train_generator)
     pass
