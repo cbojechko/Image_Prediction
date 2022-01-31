@@ -22,7 +22,7 @@ def CreatePDOS_and_RI_Images(Basepath, Ndownsample):
 
     if glob.glob(str(RIpath) + '\*.npz'):
         print("Numpy files exists skip making new ones")
-        return None
+        # return None
     dr = pydicom.read_file(RPfile[0])  # Read the plan file
     rbs = dr.FractionGroupSequence[0].ReferencedBeamSequence
     

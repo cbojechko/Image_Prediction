@@ -13,7 +13,7 @@ basepath = os.path.join('.', 'Data', 'Patient')
 """
 First, create the PDOS and reduced resolution EPID images
 """
-if False:
+if True:
     from PreProcessingTools.CreatePDOSAndRIImages import CreatePDOS_and_RI_Images
     # Factor with which to downsample EPID images are 1280x1280
     Ndownsample = 5
