@@ -13,7 +13,7 @@ basepath = os.path.join('.', 'Data', 'Patient')
 """
 First, create the PDOS and reduced resolution EPID images
 """
-if True:
+if False:
     from PreProcessingTools.CreatePDOSAndRIImages import CreatePDOS_and_RI_Images
     # Factor with which to downsample EPID images are 1280x1280
     Ndownsample = 5
@@ -24,8 +24,12 @@ Next, create the CBCT
 """
 RTIpath = os.path.join(basepath, 'RTIMAGE')
 CBCTpath = os.path.join(basepath, 'CT')
-if True:
+if False:
     #from PreProcessingTools.CreateCBCT import create_CBCT
     #create_CBCT(CBCTpath)
     from cbcthalfprojections import MakeCBCTProjection
     MakeCBCTProjection(RIpath=RTIpath, CBCTpath=CBCTpath)
+
+"""
+Lets create some .tfrecords from data already made
+"""

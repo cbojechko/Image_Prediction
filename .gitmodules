@@ -1,0 +1,3 @@
+[submodule "PreProcessingTools/Image_Processors_Module"]
+	path = PreProcessingTools/Image_Processors_Module
+	url = https://github.com/brianmanderson/Image_Processors_Module
