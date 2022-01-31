@@ -1,3 +1,6 @@
 [submodule "PreProcessingTools/Image_Processors_Module"]
 	path = PreProcessingTools/Image_Processors_Module
 	url = https://github.com/brianmanderson/Image_Processors_Module
+[submodule "DeepLearningTools/Data_Generators"]
+	path = DeepLearningTools/Data_Generators
+	url = https://github.com/brianmanderson/Data_Generators
