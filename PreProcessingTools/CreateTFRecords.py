@@ -25,7 +25,7 @@ def make_train_records(base_path):
         Processors.SimpleITKImageToArray(nifti_keys=('data_handle',),
                                          out_keys=('data_array',)),
         Processors.SplitArray(array_keys=('data_array','data_array', 'data_array'),
-                              out_keys=('image', 'epid', 'transmission'), axis_index=(0, 2, 3)),
+                              out_keys=('image', 'epid', 'transmission'), axis_index=(3, 1, 0)),
         Processors.DeleteKeys(keys_to_delete=('data_handle',)),
         Processors.ExpandDimensions(image_keys=('image', 'epid', 'transmission'), axis=-1),
         Processors.AddByValues(image_keys=('image',), values=(0,)),
