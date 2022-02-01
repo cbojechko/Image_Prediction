@@ -124,7 +124,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
         print("Make projection for Fraction " + str(int(fxs[j])) + " On " + str(int(dates[j])) )
         for gantryang in gangs:
             print("Gantry angle for projection " + str(int(gantryang)))
-            rotsource = rays.source_rotate(gantryang,origin)
+            rotsource = rays.source_rotate(gantryang, origin)
             raytracer = rays.RayTracer(image_array=image, CTinfo=CTinfo,
                                        sourceCT=rotsource, voxelDimension=voxDim,
                                        voxelSize=voxSize, headfirst=True)

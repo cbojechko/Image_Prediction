@@ -6,7 +6,9 @@ Data/
 MRN.txt
 # C extensions
 *.so
-
+*.mha
+*.nii.gz
+*.xml
 # Distribution / packaging
 .Python
 .idea/
