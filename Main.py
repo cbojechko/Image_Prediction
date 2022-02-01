@@ -20,14 +20,12 @@ if False:
     CreatePDOS_and_RI_Images(basepath, Ndownsample)
 
 """
-Next, create the CBCT
+Next, create the projection from CBCT
 """
 RTIpath = os.path.join(basepath, 'RTIMAGE')
 CBCTpath = os.path.join(basepath, 'CT')
-if False:
-    #from PreProcessingTools.CreateCBCT import create_CBCT
-    #create_CBCT(CBCTpath)
-    from cbcthalfprojections import MakeCBCTProjection
+if True:
+    from cbctprojections import MakeCBCTProjection
     MakeCBCTProjection(RIpath=RTIpath, CBCTpath=CBCTpath)
 """
 Lets look at the data real quick
@@ -38,6 +36,6 @@ evaluate_data()
 Lets create some .tfrecords from data already made
 """
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-if True:
+if False:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path)
