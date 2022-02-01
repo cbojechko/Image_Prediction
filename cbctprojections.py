@@ -104,7 +104,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
     #Search for a numpy file 
 
     for j in range(0,len(dates)):
-        cbctfile = str(CBCTpath) + '\cbct' + str(int(dates[j])) +'.npz'
+        cbctfile = str(CBCTpath) + '\cbct_' + str(int(dates[j])) +'.npz'
         if(os.path.exists(cbctfile)):
             print("Load File")
         else:
