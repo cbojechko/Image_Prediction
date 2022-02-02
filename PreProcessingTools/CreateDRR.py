@@ -2,8 +2,9 @@ import sys
 
 import SimpleITK as sitk
 import os
-from itk import RTK as rtk
+#from itk import RTK as rtk
 import itk
+import numpy as np
 from DicomRTTool.ReaderWriter import DicomReaderWriter, plot_scroll_Image, pydicom
 
 if os.path.exists(os.path.join('.', 'stack.mha')):
@@ -11,11 +12,11 @@ if os.path.exists(os.path.join('.', 'stack.mha')):
   array = sitk.GetArrayFromImage(image_handle)
 
 
-data_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient\CT'
-if not os.path.exists(os.path.join(data_path, "Image.mha")):
+data_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient1\CT'
+if not os.path.exists(os.path.join('.', "Image.mha")):
   Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
   Dicom_reader.down_folder(data_path)
-  Dicom_reader.set_index(5)
+  Dicom_reader.set_index(0) # 5
   Dicom_reader.get_images()
   dicom_handle = Dicom_reader.dicom_handle
   # for index in Dicom_reader.indexes_with_contours:
@@ -30,8 +31,24 @@ else:
   dicom_handle = sitk.ReadImage(os.path.join('.', "Image.mha"))
 # dicom_handle.SetDirection((0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
 # sitk.WriteImage(dicom_handle, "Test.nii.gz")
-CT = itk.imread(os.path.join('.', "Image.mha"), pixel_type=itk.F)
+resample_filter = sitk.ResampleImageFilter()
+resample_filter.SetDefaultPixelValue(0)
 
+transform = sitk.Euler3DTransform()
+transform.SetComputeZYX(True)
+
+dtr = np.arctan(1)*4/180
+
+imOrigin = dicom_handle.GetOrigin()
+transform.SetTranslation((0, 0, 0))
+transform.SetRotation(dtr*90, 0, 0)
+imRes = dicom_handle.GetSpacing()
+imSize = dicom_handle.GetSize()
+interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction
+
+itk.Euler3DTransform(itk.D)
+CT = itk.imread(os.path.join('.', "Image.mha"), pixel_type=itk.F)
+itk.Flip
 # Defines the image type
 Dimension_CT = 3
 PixelType = itk.F
@@ -42,10 +59,10 @@ ConstantImageSourceType = rtk.ConstantImageSource[ImageType]
 constantImageSource = ConstantImageSourceType.New()
 print("And here")
 # Define origin, sizeOutput and spacing (still need to change these)
-origin = dicom_handle.GetOrigin()
-numberOfProjections = 180 # 360
+
+numberOfProjections = 8 # 360
 dicom_size = dicom_handle.GetSize()
-sizeOutput = [ dicom_size[0], dicom_size[1], numberOfProjections]
+sizeOutput = [ dicom_size[0], dicom_size[1], numberOfProjections*2]
 spacing = dicom_handle.GetSpacing()
 
 constantImageSource.SetOrigin( origin )
@@ -63,9 +80,13 @@ sdd = 1200 # source to detector distance
 
 sdd = 1540  # source to imager distance
 sid = 1000  # source to isocenter
-for x in range(0,numberOfProjections):
+for x in range(numberOfProjections):
   angle = firstAngle + x * angularArc / numberOfProjections
-  geometry.AddProjection(sid, sdd, 0., 0., 0., 90., angle)
+  geometry.AddProjection(sid, sdd, angle, 0., 0., 90., 0., 0., 0.)
+for x in range(numberOfProjections):
+  angle = firstAngle + x * angularArc / numberOfProjections
+  geometry.AddProjection(sid, sdd, 0., 0., 0., 90., angle, 0., 0.)
+# geometry.AddProjection(sid, sdd, 0, 0., 0., 90., 0., 0., 0.)
 # sid, ssd, gantryAngle, projOffsetX, projOffsetY, outOfPlaneAngle, inPlaneAngle, sourceOffsetX, sourceOffsetY
 # Writing the geometry to disk
 xmlWriter = rtk.ThreeDCircularProjectionGeometryXMLFileWriter.New()
@@ -79,4 +100,4 @@ rei.SetGeometry(geometry)
 rei.SetInput(0, constantImageSource.GetOutput())
 rei.SetInput(1, CT)
 rei.Update()
-itk.imwrite(rei.GetOutput(), 'stack.mha')
+itk.imwrite(rei.GetOutput(), 'stack1.mha')
