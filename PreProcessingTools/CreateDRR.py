@@ -50,7 +50,7 @@ dy = imSize[1]
 o2Dx = 0.
 o2Dy = 0.
 
-threshold = 0
+threshold = -300
 
 Dimension = 3
 
@@ -74,7 +74,7 @@ transform.SetComputeZYX(True)
 dtr = np.arctan(1)*4/180
 
 transform.SetTranslation(translations)
-transform.SetRotation(rotations[0] * dtr, rotations[1] * dtr, rotations[2] * dtr)
+transform.SetRotation(np.deg2rad(rotations[0]), np.deg2rad(rotations[1]), np.deg2rad(rotations[2]))
 
 isocenter = [0, 0, 0]
 for i in range(3):
