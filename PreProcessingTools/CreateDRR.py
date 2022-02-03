@@ -31,24 +31,66 @@ else:
   dicom_handle = sitk.ReadImage(os.path.join('.', "Image.mha"))
 # dicom_handle.SetDirection((0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
 # sitk.WriteImage(dicom_handle, "Test.nii.gz")
-resample_filter = sitk.ResampleImageFilter()
-resample_filter.SetDefaultPixelValue(0)
+InputImageType = itk.Image[itk.F, 3]
 
-transform = sitk.Euler3DTransform()
+CT = itk.imread(os.path.join('.', "Image.mha"), pixel_type=itk.F)
+region = CT.GetBufferedRegion()
+
+filter = itk.ResampleImageFilter[InputImageType, InputImageType].New()
+filter.SetDefaultPixelValue(0)
+filter.SetInput(CT)
+
+transform = itk.Euler3DTransform[itk.D].New()
 transform.SetComputeZYX(True)
 
 dtr = np.arctan(1)*4/180
-
-imOrigin = dicom_handle.GetOrigin()
 transform.SetTranslation((0, 0, 0))
 transform.SetRotation(dtr*90, 0, 0)
+
+imSize = region.GetSize()
+imOrigin = dicom_handle.GetOrigin()
+
+isocenter = [0, 0, 0]
+imRes = dicom_handle.GetSpacing()
+isocenter[0] = imOrigin[0] + imRes[0] * (imSize[0]) / 2.0
+isocenter[1] = imOrigin[1] + imRes[1] * (imSize[1]) / 2.0
+isocenter[2] = imOrigin[2] + imRes[2] * (imSize[2]) / 2.0
+
+transform.SetCenter(imOrigin)
 imRes = dicom_handle.GetSpacing()
 imSize = dicom_handle.GetSize()
-interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction
 
-itk.Euler3DTransform(itk.D)
-CT = itk.imread(os.path.join('.', "Image.mha"), pixel_type=itk.F)
-itk.Flip
+o2Dx = (512-1)/2
+o2Dy = (512-1)/2
+origin = [0, 0, 0]
+
+origin[0] = -512 * o2Dx
+origin[1] = -512 * o2Dy
+origin[2] = -1000
+filter.SetOutputOrigin(imOrigin)
+
+interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction[InputImageType, itk.D].New()
+interpolator.SetProjectionAngle(dtr*0)
+interpolator.SetFocalPointToIsocenterDistance(1000)
+interpolator.SetThreshold(0.)
+interpolator.SetTransform(transform)
+interpolator.Initialize()
+
+filter.SetInterpolator(interpolator)
+
+dicom_size = dicom_handle.GetSize()
+sizeOutput = [ dicom_size[0], dicom_size[1], 1]
+spacing = dicom_handle.GetSpacing()
+
+filter.SetSize(sizeOutput)
+filter.SetOutputSpacing(spacing)
+filter.Update()
+output = filter.GetOutput()
+
+writer = itk.ImageFileWriter[InputImageType].New()
+writer.SetFileName(os.path.join('.','Output.mha'))
+writer.SetInput(output)
+writer.Update()
 # Defines the image type
 Dimension_CT = 3
 PixelType = itk.F
@@ -61,9 +103,8 @@ print("And here")
 # Define origin, sizeOutput and spacing (still need to change these)
 
 numberOfProjections = 8 # 360
-dicom_size = dicom_handle.GetSize()
-sizeOutput = [ dicom_size[0], dicom_size[1], numberOfProjections*2]
-spacing = dicom_handle.GetSpacing()
+
+
 
 constantImageSource.SetOrigin( origin )
 constantImageSource.SetSpacing( spacing )
