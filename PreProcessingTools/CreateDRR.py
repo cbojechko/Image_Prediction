@@ -38,6 +38,7 @@ translations = [0, 0, 0] # x, y, z
 pixel_iso_center = [0, 0, 0] # x, y, z
 rprojection = 0. # Projection angle in degrees
 sid = 1000 # source to isocenter
+spd = 1540 # source to panel distance
 imRes = dicom_handle.GetSpacing()
 
 im_sx = imRes[0]
@@ -50,7 +51,7 @@ dy = imSize[1]
 o2Dx = 0.
 o2Dy = 0.
 
-threshold = -300
+threshold = -800
 
 Dimension = 3
 
@@ -82,7 +83,7 @@ for i in range(3):
 transform.SetCenter(isocenter)
 
 interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction[InputImageType, itk.D].New()
-interpolator.SetProjectionAngle(rprojection*dtr)
+interpolator.SetProjectionAngle(np.deg2rad(rprojection))
 interpolator.SetFocalPointToIsocenterDistance(sid)
 interpolator.SetThreshold(threshold)
 interpolator.SetTransform(transform)
@@ -97,10 +98,10 @@ o2Dy = (dy-1)/2
 #origin = [0, 0, 0]
 origin[0] += im_sx * o2Dx
 origin[1] += im_sy * o2Dy
-origin[2] = -sid
+origin[2] = -spd
 
 filter.SetOutputOrigin(origin)
-filter.SetOutputDirection(image.GetDirection())
+#filter.SetOutputDirection(image.GetDirection())
 filter.Update()
 
 output = filter.GetOutput()
