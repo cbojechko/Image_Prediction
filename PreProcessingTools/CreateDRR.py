@@ -1,5 +1,5 @@
 import sys
-
+from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
 import os
 # from itk import RTK as rtk
@@ -46,37 +46,21 @@ def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 
     return output
 
 
-def main():
-    if os.path.exists(os.path.join('.', 'stack.mha')):
-        image_handle = sitk.ReadImage('stack.mha')
-
-    data_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient1\CT'
-    if not os.path.exists(os.path.join('.', "Image.mha")):
-        Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
-        Dicom_reader.down_folder(data_path)
-        Dicom_reader.set_index(0)  # 5
-        Dicom_reader.get_images()
-        dicom_handle = Dicom_reader.dicom_handle
-        # for index in Dicom_reader.indexes_with_contours:
-        #   Dicom_reader.set_index(index)
-        #   Dicom_reader.get_images()
-        #   date = Dicom_reader.reader.GetMetaData(0, "0008|0022")
-        #   print(index)
-        #   print(date)
-        # Loading 3D CT image
-        sitk.WriteImage(dicom_handle, os.path.join('.', "Image.mha"))
-    else:
-        dicom_handle = sitk.ReadImage(os.path.join('.', "Image.mha"))
-    # dicom_handle.SetDirection((0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
-    # sitk.WriteImage(dicom_handle, "Test.nii.gz")
-    image = itk.imread(os.path.join('.', "Image.mha"), pixel_type=itk.F)
-    rotations = [0, 0, 45]  # x, y, z
+def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path.join('.', 'Output.mha')):
+    """
+    :param sitk_handle: handle from SimpleITK, usually from DICOMRTTool
+    :param sid: source to iso-center distance, in mm
+    :param spd: source to panel distance, in mm
+    :param gantry_angle: angle of gantry
+    :param out_path: name of out file
+    :return:
+    """
+    image = ConvertSimpleItkImageToItkImage(sitk_handle, itk.F)
+    rotations = [0, 0, gantry_angle]  # x, y, z
 
     translations = [0, 0, 0]  # x, y, z
 
     rprojection = 0.  # Projection angle in degrees
-    sid = 1000  # source to isocenter
-    spd = 1000  # source to panel distance
     threshold = -1000
     imRes = image.GetSpacing()
 
@@ -97,14 +81,14 @@ def main():
 
     final_filter = itk.ResampleImageFilter[InputImageType, InputImageType].New()
     final_filter.SetDefaultPixelValue(0)
-    transformed_image = rotate_and_translate_image(image, rotations)
+    transformed_image = rotate_and_translate_image(image, translations=translations, rotations=rotations)
     final_filter.SetInput(transformed_image)
 
     transform = itk.Euler3DTransform[itk.D].New()
     transform.SetComputeZYX(True)
 
-    transform.SetTranslation((0, 0, 0))
-    transform.SetRotation(0, 0, 0)
+    transform.SetTranslation((0, 0, 0)) # Do not change these!
+    transform.SetRotation(0, 0, 0) # Do not change these!
     isocenter = [0, 0, 0]
     for i in range(3):
         isocenter[i] = origin[i] + imRes[i] * imSize[i] / 2
@@ -123,13 +107,13 @@ def main():
 
     o2Dx = (dx - 1) / 2
     o2Dy = (dy - 1) / 2
-    # origin = [0, 0, 0]
+
     origin[0] += im_sx * o2Dx
     origin[1] += im_sy * o2Dy
     origin[2] = -spd
 
     final_filter.SetOutputOrigin(origin)
-    # filter.SetOutputDirection(image.GetDirection())
+    final_filter.SetOutputDirection(image.GetDirection())
     final_filter.Update()
 
     flipFilter = itk.FlipImageFilter[InputImageType].New()
@@ -137,9 +121,32 @@ def main():
     flipFilter.SetFlipAxes((False, True, False))
 
     writer = itk.ImageFileWriter[InputImageType].New()
-    writer.SetFileName(os.path.join('.', 'Output.mha'))
+    writer.SetFileName(out_path)
     writer.SetInput(flipFilter.GetOutput())
     writer.Update()
+    return None
+
+
+def main():
+    data_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient1\CT'
+    if not os.path.exists(os.path.join('.', "Image.mha")):
+        Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
+        Dicom_reader.down_folder(data_path)
+        Dicom_reader.set_index(0)  # 5
+        Dicom_reader.get_images()
+        dicom_handle = Dicom_reader.dicom_handle
+        # for index in Dicom_reader.indexes_with_contours:
+        #   Dicom_reader.set_index(index)
+        #   Dicom_reader.get_images()
+        #   date = Dicom_reader.reader.GetMetaData(0, "0008|0022")
+        #   print(index)
+        #   print(date)
+        # Loading 3D CT image
+        sitk.WriteImage(dicom_handle, os.path.join('.', "Image.mha"))
+    else:
+        dicom_handle = sitk.ReadImage(os.path.join('.', "Image.mha"))
+    create_drr(dicom_handle, gantry_angle=0, sid=1000, spd=1000)
+    return None
 
 
 if __name__ == '__main__':
