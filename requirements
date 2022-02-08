@@ -7,3 +7,4 @@ itk-numerics==5.2.1.post1
 itk-registration==5.2.1.post1
 itk-segmentation==5.2.1.post1
 itk-twoprojectionregistration==1.1.0
+RegisteringImages
