@@ -129,6 +129,14 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     return None
 
 
+def array_to_sitk(array: np.ndarray, reference_handle: sitk.Image):
+    out_handle = sitk.GetImageFromArray(array)
+    out_handle.SetSpacing(reference_handle.GetSpacing())
+    out_handle.SetOrigin(reference_handle.GetOrigin())
+    out_handle.SetDirection(reference_handle.GetDirection())
+    return out_handle
+
+
 def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
     cbct_array = sitk.GetArrayFromImage(cbct_drr)
     ct_array = sitk.GetArrayFromImage(ct_drr)
@@ -152,8 +160,8 @@ def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
     cbct_array[:, :start, :] = ct_array[:, :start, :]
     cbct_array[:, stop:, :] = ct_array[:, stop:, :]
     # plt.plot(axis_sum) # <-- can see the hump
-    xxx = 1
-    return None
+    cbct_handle = array_to_sitk(cbct_array, reference_handle=ct_drr)
+    return cbct_handle
 
 def expandDRR(patient_path):
     if not os.path.exists(os.path.join(patient_path, 'Primary_CT_DRR.mha')):
@@ -162,9 +170,12 @@ def expandDRR(patient_path):
     CBCT_DRR_Files = glob(os.path.join(patient_path, 'CBCT*DRR*'))
     CTDRRhandle = sitk.ReadImage(os.path.join(patient_path, 'Primary_CT_DRR.mha'))
     for cbct_drr_file in CBCT_DRR_Files:
+        file_name = os.path.split(cbct_drr_file)[-1]
         CBCTDRRhandle = sitk.ReadImage(cbct_drr_file)
-        fix_DRR(cbct_drr=CBCTDRRhandle, ct_drr=CTDRRhandle)
+        cbct_handle = fix_DRR(cbct_drr=CBCTDRRhandle, ct_drr=CTDRRhandle)
+        sitk.WriteImage(cbct_handle, os.path.join(patient_path, file_name.replace(".mha", "_Padded.mha")))
     return None
+
 
 def createDRRs(patient_path):
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
