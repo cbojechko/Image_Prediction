@@ -1,4 +1,4 @@
-import sys
+from matplotlib import pyplot as plt
 from glob import glob
 from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
@@ -130,6 +130,28 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
 
 
 def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
+    cbct_array = sitk.GetArrayFromImage(cbct_drr)
+    ct_array = sitk.GetArrayFromImage(ct_drr)
+    y = np.sum(cbct_array.astype('bool')[0], axis=-1) # Flatten the array into a line, looking for the spot to move
+    x = np.arange(y.shape[0])
+    kernel_size = 100
+    kernel = np.ones(kernel_size) / kernel_size
+    dy = np.diff(y, 1)
+    dx = np.diff(x, 1)
+    xfirst = 0.5 * (x[:-1] + x[1:])
+    yfirst = dy / dx
+    dyfirst = np.diff(yfirst, 1)
+    dxfirst = np.diff(xfirst, 1)
+    ysecond = dyfirst / dxfirst
+    convoled_ysecond = np.convolve(ysecond, kernel, mode='same')
+
+    ten_percent = np.where(convoled_ysecond <= -.5)[0]
+    start = ten_percent[0]
+    stop = ten_percent[-1]
+
+    cbct_array[:, :start, :] = ct_array[:, :start, :]
+    cbct_array[:, stop:, :] = ct_array[:, stop:, :]
+    # plt.plot(axis_sum) # <-- can see the hump
     xxx = 1
     return None
 
@@ -137,11 +159,9 @@ def expandDRR(patient_path):
     if not os.path.exists(os.path.join(patient_path, 'Primary_CT_DRR.mha')):
         print("Could not find Primary_CT_DRR!")
         return None
-    files = os.listdir(patient_path)
     CBCT_DRR_Files = glob(os.path.join(patient_path, 'CBCT*DRR*'))
-    CBCT_DRR_files = [os.path.join(patient_path, i) for i in files if i.find('CBCT') != -1]
     CTDRRhandle = sitk.ReadImage(os.path.join(patient_path, 'Primary_CT_DRR.mha'))
-    for cbct_drr_file in CBCT_DRR_files:
+    for cbct_drr_file in CBCT_DRR_Files:
         CBCTDRRhandle = sitk.ReadImage(cbct_drr_file)
         fix_DRR(cbct_drr=CBCTDRRhandle, ct_drr=CTDRRhandle)
     return None
