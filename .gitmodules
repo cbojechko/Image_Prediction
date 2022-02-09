@@ -4,3 +4,6 @@
 [submodule "DeepLearningTools/Data_Generators"]
 	path = DeepLearningTools/Data_Generators
 	url = https://github.com/brianmanderson/Data_Generators
+[submodule "PreProcessingTools/RegisteringImages"]
+	path = PreProcessingTools/RegisteringImages
+	url = https://github.com/brianmanderson/RegisteringImages

@@ -3,7 +3,7 @@ from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
 import os
 # from itk import RTK as rtk
-from RegisterImages.WithDicomReg import register_images_with_dicom_reg
+from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
 from DicomRTTool.ReaderWriter import DicomReaderWriter, plot_scroll_Image, pydicom
@@ -148,27 +148,27 @@ def main():
     reg_path = os.path.join(patient_path, 'REG')
     for file in os.listdir(reg_path):
         ds = pydicom.read_file(os.path.join(reg_path, file))
-        to_uid = ds.ReferencedSeriesSequence[-1].SeriesInstanceUID
-        from_uid = ds.ReferencedSeriesSequence[0].SeriesInstanceUID
-        if to_uid == CT_SIUID:
+        for ref in ds.ReferencedSeriesSequence:
+            from_uid = ref.SeriesInstanceUID
+            if from_uid == CT_SIUID:
+                continue
             for index in Dicom_reader.indexes_with_contours:
                 if Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID'] == from_uid:
                     Dicom_reader.set_index(index)  # Primary CT
                     Dicom_reader.get_images()
                     cbct_handle = Dicom_reader.dicom_handle
-                    registered_handle = register_images_with_dicom_reg(fixed_image=CT_handle, moving_image=cbct_handle,
-                                                                       dicom_registration=ds, min_value=-1000,
-                                                                       method=sitk.sitkLinear)
-                    xxx = 1
+                    sitk.WriteImage(cbct_handle, os.path.join('.', "CBCT_{}.mha".format(index)))
+                    registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
+                                                      moving_series_instance_uid=from_uid,
+                                                      dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
+                    sitk.WriteImage(registered_handle, os.path.join('.', "Registered_CBCT_{}.mha".format(index)))
+                    create_drr(registered_handle, gantry_angle=45, sid=1000, spd=1540,
+                               out_path=os.path.join('.', 'CBCT_{}_DRR.mha'.format(index)))
 
 
-    sitk.WriteImage(cbct_handle, os.path.join('.', "CBCT_0.mha"))
 
+    create_drr(CT_handle, gantry_angle=45, sid=1000, spd=1540, out_path=os.path.join('.', 'Primary_CT_DRR.mha'))
 
-    Dicom_reader.down_folder(reg_path)
-
-    create_drr(CT_handle, gantry_angle=0, sid=1000, spd=1540, out_path=os.path.join('.', 'Primary_CT_DRR.mha'))
-    create_drr(cbct_handle, gantry_angle=0, sid=1000, spd=1540, out_path=os.path.join('.', 'CBCT_0_DRR.mha'))
     return None
 
 
