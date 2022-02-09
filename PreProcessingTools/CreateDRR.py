@@ -1,4 +1,5 @@
 import sys
+from glob import glob
 from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
 import os
@@ -128,8 +129,24 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     return None
 
 
-def main():
-    patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
+def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
+    xxx = 1
+    return None
+
+def expandDRR(patient_path):
+    if not os.path.exists(os.path.join(patient_path, 'Primary_CT_DRR.mha')):
+        print("Could not find Primary_CT_DRR!")
+        return None
+    files = os.listdir(patient_path)
+    CBCT_DRR_Files = glob(os.path.join(patient_path, 'CBCT*DRR*'))
+    CBCT_DRR_files = [os.path.join(patient_path, i) for i in files if i.find('CBCT') != -1]
+    CTDRRhandle = sitk.ReadImage(os.path.join(patient_path, 'Primary_CT_DRR.mha'))
+    for cbct_drr_file in CBCT_DRR_files:
+        CBCTDRRhandle = sitk.ReadImage(cbct_drr_file)
+        fix_DRR(cbct_drr=CBCTDRRhandle, ct_drr=CTDRRhandle)
+    return None
+
+def createDRRs(patient_path):
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
     Dicom_reader.down_folder(os.path.join(patient_path, 'CT'))
     # for index in Dicom_reader.indexes_with_contours:
@@ -139,11 +156,14 @@ def main():
     #   print(index)
     #   print(date)
     # Loading 3D CT image
-    Dicom_reader.set_index(6)  # Primary CT
-    Dicom_reader.get_images()
-    CT_handle = Dicom_reader.dicom_handle
-    sitk.WriteImage(CT_handle, os.path.join('.', "Primary_CT.mha"))
-    CT_SIUID = Dicom_reader.series_instances_dictionary[6]['SeriesInstanceUID']
+    CT_SIUID = None
+    for index in Dicom_reader.indexes_with_contours:
+        if Dicom_reader.series_instances_dictionary[index]['Description'] is not None:
+            Dicom_reader.set_index(index)  # Primary CT
+            Dicom_reader.get_images()
+            CT_handle = Dicom_reader.dicom_handle
+            sitk.WriteImage(CT_handle, os.path.join(patient_path, "Primary_CT.mha"))
+            CT_SIUID = Dicom_reader.series_instances_dictionary[6]['SeriesInstanceUID']
 
     reg_path = os.path.join(patient_path, 'REG')
     for file in os.listdir(reg_path):
@@ -162,13 +182,17 @@ def main():
                                                       moving_series_instance_uid=from_uid,
                                                       dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
                     sitk.WriteImage(registered_handle, os.path.join('.', "Registered_CBCT_{}.mha".format(index)))
-                    create_drr(registered_handle, gantry_angle=45, sid=1000, spd=1540,
+                    create_drr(registered_handle, gantry_angle=0, sid=1000, spd=1540,
                                out_path=os.path.join('.', 'CBCT_{}_DRR.mha'.format(index)))
+    create_drr(CT_handle, gantry_angle=0, sid=1000, spd=1540, out_path=os.path.join('.', 'Primary_CT_DRR.mha'))
 
 
-
-    create_drr(CT_handle, gantry_angle=45, sid=1000, spd=1540, out_path=os.path.join('.', 'Primary_CT_DRR.mha'))
-
+def main():
+    patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
+    if False:
+        createDRRs(patient_path=patient_path)
+    if True:
+        expandDRR(patient_path='.')
     return None
 
 
