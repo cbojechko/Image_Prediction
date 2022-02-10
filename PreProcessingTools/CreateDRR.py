@@ -160,6 +160,7 @@ def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
     cbct_handle = array_to_sitk(cbct_array, reference_handle=ct_drr)
     return cbct_handle
 
+
 def expandDRR(patient_path):
     if not os.path.exists(os.path.join(patient_path, 'Primary_CT_DRR.mha')):
         print("Could not find Primary_CT_DRR!")
@@ -175,7 +176,37 @@ def expandDRR(patient_path):
     return None
 
 
+def get_binary_image(annotation_handle, lowerThreshold, upperThreshold):
+    thresholded_image = sitk.BinaryThreshold(annotation_handle, lowerThreshold=lowerThreshold,
+                                             upperThreshold=upperThreshold)
+    return thresholded_image
+
+
+def get_connected_image(annotation_handle, lowerThreshold=-900, upperThreshold=5000):
+    Connected_Component_Filter = sitk.ConnectedComponentImageFilter()
+    Connected_Component_Filter.FullyConnectedOff()
+    RelabelComponent = sitk.RelabelComponentImageFilter()
+    RelabelComponent.SortByObjectSizeOn()
+    thresholded_image = get_binary_image(annotation_handle, lowerThreshold, upperThreshold)
+    connected_image = Connected_Component_Filter.Execute(thresholded_image)
+    connected_image = RelabelComponent.Execute(connected_image)
+    return connected_image
+
+
+def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
+    connected_images = get_connected_image(annotation_handle, lowerThreshold, upperThreshold)
+    outside_body = get_binary_image(connected_images, lowerThreshold=1, upperThreshold=1)
+    for i in range(outside_body.GetSize()[-1]):
+        connected_image = get_connected_image(outside_body[:, :, i], lowerThreshold=1, upperThreshold=1)
+        binary_image = get_binary_image(connected_image, lowerThreshold=1, upperThreshold=1)
+        outside_body[:, :, i] = binary_image
+    return outside_body
+
+
 def createDRRs(patient_path):
+    dilate_filter = sitk.BinaryDilateImageFilter()
+    dilate_filter.SetKernelType(sitk.sitkBall)
+    dilate_filter.SetKernelRadius((0, 0, 5))
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
     Dicom_reader.down_folder(os.path.join(patient_path, 'CT'))
     # for index in Dicom_reader.indexes_with_contours:
@@ -191,6 +222,7 @@ def createDRRs(patient_path):
             Dicom_reader.set_index(index)  # Primary CT
             Dicom_reader.get_images()
             CT_handle = Dicom_reader.dicom_handle
+            ct_array = Dicom_reader.ArrayDicom
             sitk.WriteImage(CT_handle, os.path.join(patient_path, "Primary_CT.mha"))
             CT_SIUID = Dicom_reader.series_instances_dictionary[6]['SeriesInstanceUID']
 
@@ -210,6 +242,11 @@ def createDRRs(patient_path):
                     registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
                                                       moving_series_instance_uid=from_uid,
                                                       dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
+                    outside_body = get_outside_body_contour(registered_handle, lowerThreshold=-2000, upperThreshold=-300)
+                    dilated_handle = dilate_filter.Execute(outside_body)
+                    cbct_array = sitk.GetArrayFromImage(registered_handle)
+                    cbct_array[sitk.GetArrayFromImage(dilated_handle) == 1] = ct_array[sitk.GetArrayFromImage(dilated_handle) == 1]
+                    registered_handle = array_to_sitk(cbct_array, registered_handle)
                     sitk.WriteImage(registered_handle, os.path.join('.', "Registered_CBCT_{}.mha".format(index)))
                     create_drr(registered_handle, gantry_angle=0, sid=1000, spd=1540,
                                out_path=os.path.join('.', 'CBCT_{}_DRR.mha'.format(index)))
@@ -218,9 +255,9 @@ def createDRRs(patient_path):
 
 def main():
     patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
-    if False:
-        createDRRs(patient_path=patient_path)
     if True:
+        createDRRs(patient_path=patient_path)
+    if False:
         expandDRR(patient_path='.')
     return None
 
