@@ -138,25 +138,22 @@ def array_to_sitk(array: np.ndarray, reference_handle: sitk.Image):
 
 
 def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
+    slice_thickness = cbct_drr.GetSpacing()[-1]
     cbct_array = sitk.GetArrayFromImage(cbct_drr)
     ct_array = sitk.GetArrayFromImage(ct_drr)
     y = np.sum(cbct_array.astype('bool')[0], axis=-1) # Flatten the array into a line, looking for the spot to move
-    x = np.arange(y.shape[0])
-    kernel_size = 100
+    values = np.where(y > 0)[0]
+    kernel_size = 5
     kernel = np.ones(kernel_size) / kernel_size
     dy = np.diff(y, 1)
-    dx = np.diff(x, 1)
-    xfirst = 0.5 * (x[:-1] + x[1:])
-    yfirst = dy / dx
-    dyfirst = np.diff(yfirst, 1)
-    dxfirst = np.diff(xfirst, 1)
-    ysecond = dyfirst / dxfirst
-    convoled_ysecond = np.convolve(ysecond, kernel, mode='same')
-
-    ten_percent = np.where(convoled_ysecond <= -.5)[0]
-    start = ten_percent[0]
-    stop = ten_percent[-1]
-
+    dx = np.ones(y.shape[0] - 1)
+    yfirst = np.abs(dy / dx)
+    yfirst[yfirst < 1] = 0
+    yfirst_convolved = np.convolve(yfirst, kernel, mode='same')
+    start_vals = np.where((yfirst_convolved[:-1] > .75) & (yfirst_convolved[1:] < .75))[0]
+    start = int(start_vals[0] + 20 / slice_thickness)
+    stop_vals = np.where((yfirst_convolved[:-1] < .75) & (yfirst_convolved[1:] > .75))[0]
+    stop = int(stop_vals[-1] - 20 / slice_thickness)
     cbct_array[:, :start, :] = ct_array[:, :start, :]
     cbct_array[:, stop:, :] = ct_array[:, stop:, :]
     # plt.plot(axis_sum) # <-- can see the hump
@@ -167,9 +164,10 @@ def expandDRR(patient_path):
     if not os.path.exists(os.path.join(patient_path, 'Primary_CT_DRR.mha')):
         print("Could not find Primary_CT_DRR!")
         return None
-    CBCT_DRR_Files = glob(os.path.join(patient_path, 'CBCT*DRR*'))
+    CBCT_DRR_Files = glob(os.path.join(patient_path, 'CBCT*DRR.mha'))
     CTDRRhandle = sitk.ReadImage(os.path.join(patient_path, 'Primary_CT_DRR.mha'))
     for cbct_drr_file in CBCT_DRR_Files:
+        print("Writing padded CBCT for {}".format(cbct_drr_file))
         file_name = os.path.split(cbct_drr_file)[-1]
         CBCTDRRhandle = sitk.ReadImage(cbct_drr_file)
         cbct_handle = fix_DRR(cbct_drr=CBCTDRRhandle, ct_drr=CTDRRhandle)
