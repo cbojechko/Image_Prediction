@@ -203,18 +203,24 @@ def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
     return outside_body
 
 
-def create_registered_cbct(patient_path, out_path_base='.'):
+def create_registered_cbct(patient_path):
+    if not os.path.exists(os.path.join(patient_path, 'pCT')):
+        print("No primary CT for {}".format(patient_path))
+        return None
+    out_folder = os.path.join(patient_path, "Niftiis")
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
-    Dicom_reader.down_folder(os.path.join(patient_path, 'CT'))
     CT_SIUID = None
-    primary_CTSUID_path = os.path.join(out_path_base, "PrimaryCTSIUD.txt")
+    primary_CTSUID_path = os.path.join(out_folder, "PrimaryCTSIUD.txt")
     if not os.path.exists(primary_CTSUID_path):
+        Dicom_reader.down_folder(os.path.join(patient_path, 'pCT'))  # Read in the primary CT
         for index in Dicom_reader.indexes_with_contours:
             if Dicom_reader.series_instances_dictionary[index]['Description'] is not None:
                 Dicom_reader.set_index(index)  # Primary CT
                 Dicom_reader.get_images()
                 CT_handle = Dicom_reader.dicom_handle
-                sitk.WriteImage(CT_handle, os.path.join(out_path_base, "Primary_CT.mha"))
+                sitk.WriteImage(CT_handle, os.path.join(out_folder, "Primary_CT.mha"))
                 CT_SIUID = Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID']
                 fid = open(primary_CTSUID_path, 'w+')
                 fid.write(CT_SIUID)
@@ -224,7 +230,8 @@ def create_registered_cbct(patient_path, out_path_base='.'):
         fid = open(primary_CTSUID_path)
         CT_SIUID = fid.readline()
         fid.close()
-        CT_handle = sitk.ReadImage(os.path.join(out_path_base, "Primary_CT.mha"))
+        CT_handle = sitk.ReadImage(os.path.join(out_folder, "Primary_CT.mha"))
+    Dicom_reader.down_folder(os.path.join(patient_path, 'CT')) # Read in the CBCTs
     reg_path = os.path.join(patient_path, 'REG')
     for file in os.listdir(reg_path):
         ds = pydicom.read_file(os.path.join(reg_path, file))
@@ -238,11 +245,13 @@ def create_registered_cbct(patient_path, out_path_base='.'):
                     Dicom_reader.get_images()
                     date = Dicom_reader.reader.GetMetaData(0, "0008|0022") #YYYYMMDD
                     cbct_handle = Dicom_reader.dicom_handle
-                    sitk.WriteImage(cbct_handle, os.path.join(out_path_base, "CBCT_{}.mha".format(date)))
-                    registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
-                                                      moving_series_instance_uid=from_uid,
-                                                      dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
-                    sitk.WriteImage(registered_handle, os.path.join(out_path_base, "Registered_CBCT_{}.mha".format(date)))
+                    out_reg_file = os.path.join(out_folder, "Registered_CBCT_{}.mha".format(date))
+                    if not os.path.exists(out_reg_file):
+                        sitk.WriteImage(cbct_handle, os.path.join(out_folder, "CBCT_{}.mha".format(date)))
+                        registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
+                                                          moving_series_instance_uid=from_uid,
+                                                          dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
+                        sitk.WriteImage(registered_handle, out_reg_file)
     return None
 
 
@@ -284,7 +293,6 @@ def pad_cbct(cbct_handle: sitk.Image, ct_handle: sitk.Image, expansion=2, min_fr
     difference = array_to_sitk(difference_array, cbct_handle)
     dilate_filter.SetKernelRadius((expansion, expansion, expansion))
     difference_dilated = dilate_filter.Execute(difference) # Expand the contours laterally, then mask the slices below
-    sitk.WriteImage(difference_dilated, 'Dif.mha')
     difference_dilated_array = sitk.GetArrayFromImage(difference_dilated)
     cbct_array[:start] = ct_array[:start]
     cbct_array[stop:] = ct_array[stop:]
@@ -293,34 +301,53 @@ def pad_cbct(cbct_handle: sitk.Image, ct_handle: sitk.Image, expansion=2, min_fr
     return padded_cbct_handle
 
 
-def createDRRs(patient_path, out_path_base='.'):
+def create_padded_cbcts(patient_path):
+    patient_path = os.path.join(patient_path, "Niftiis")
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
     if not os.path.exists(primary_CT_path):
         print("Primary CT does not exist!")
         return None
-    primary_CTSUID_path = os.path.join(patient_path, "PrimaryCTSIUD.txt")
-    fid = open(primary_CTSUID_path)
-    CT_SIUID = fid.readline()
-    fid.close()
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
-    dilate_filter = sitk.BinaryDilateImageFilter()
-    dilate_filter.SetKernelType(sitk.sitkBall)
-    dilate_filter.SetKernelRadius((0, 0, 5))
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
+        out_file = CBCT_File.replace("Registered_CBCT", "Padded_CBCT")
+        if os.path.exists(out_file):
+            continue
         registered_handle = sitk.ReadImage(CBCT_File)
         padded_cbct = pad_cbct(registered_handle, CT_handle, expansion=2, min_fraction=0.1)
-        sitk.WriteImage(padded_cbct, CBCT_File.replace("Registered_CBCT", "Padded_CBCT"))
-    create_drr(CT_handle, gantry_angle=0, sid=1000, spd=1540, out_path=os.path.join(out_path_base, 'Primary_CT_DRR.mha'))
+        sitk.WriteImage(padded_cbct, out_file)
+    return None
+
+
+def createDRRs(patient_path):
+    primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
+    if not os.path.exists(primary_CT_path):
+        print("Primary CT does not exist!")
+        return None
+    Padded_CBCT_Files = glob(os.path.join(patient_path, 'Padded_CBCT*.mha'))
+    for Padded_CBCT_File in Padded_CBCT_Files:
+        out_file = Padded_CBCT_File.replace("Padded_CBCT", "DRR")
+        if os.path.exists(out_file):
+            continue
+        padded_handle = sitk.ReadImage(Padded_CBCT_File)
+        create_drr(padded_handle, gantry_angle=0, sid=1000, spd=1540,
+                   out_path=out_file)
+    return None
 
 
 def main():
     patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
-    out_path_base = '.'
-    if False:
-        create_registered_cbct(patient_path=patient_path, out_path_base=out_path_base)
-    if True:
-        createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
+    path = r'R:\Bojechko'
+    for patient_data in ['PatientData2']:
+        base_patient_path = os.path.join(path, patient_data)
+        for patient_MRN in os.listdir(base_patient_path):
+            patient_path = os.path.join(base_patient_path, patient_MRN)
+            if True:
+                create_registered_cbct(patient_path=patient_path)
+                create_padded_cbcts(patient_path=patient_path)
+            if False:
+                createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
+            break
     if False:
         expandDRR(patient_path='.')
     return None
