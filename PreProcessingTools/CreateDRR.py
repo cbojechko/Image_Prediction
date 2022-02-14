@@ -246,13 +246,53 @@ def create_registered_cbct(patient_path, out_path_base='.'):
     return None
 
 
-def pad_cbct(cbct_handle: sitk.Image, ct_handle: sitk.Image):
+def pad_cbct(cbct_handle: sitk.Image, ct_handle: sitk.Image, expansion=2, min_fraction=.1):
+    """
+    :param cbct_handle:
+    :param ct_handle:
+    :param expansion: expansion to explore, in cm
+    :param min_fraction: the fraction of present mask required
+    :return:
+    """
+    ct_array = sitk.GetArrayFromImage(ct_handle)
+    dilate_filter = sitk.BinaryDilateImageFilter()
+    dilate_filter.SetKernelType(sitk.sitkBall)
+    dilate_filter.SetKernelRadius((0, 0, expansion)) # First only expand in the z direction
     cbct_array = sitk.GetArrayFromImage(cbct_handle)
     """
     The goal here is to find the 'start' and 'stop' of the registered CBCT
-    Then, we'll merge the CBCT and CT to match that merging angle, with an overlap of 10 cm
+    Then, we'll merge the CBCT and CT to match that merging angle, with an overlap of 2 cm
     """
-    min_values = np.min(cbct_array, axis=(0, 1)) # Just get the minimum values, looking for start and st
+    max_values = np.max(cbct_array, axis=(1, 2)) # Just get the minimum values, looking for start and st
+    max_values = np.where(max_values > -1000)[0]
+    start = max_values[0]
+    stop = max_values[-1]
+
+    #connected_images = get_connected_image(cbct_handle, -900, 9999)
+    inside_body = get_binary_image(cbct_handle, lowerThreshold=-800, upperThreshold=9999)
+    expanded_body = dilate_filter.Execute(inside_body)
+    difference = expanded_body - inside_body
+    # for i in range(difference.GetSize()[-1]):
+    #     difference[:, :, i] = get_binary_image(get_connected_image(difference[:, :, i], lowerThreshold=1,
+    #                                                                upperThreshold=1),
+    #                                            lowerThreshold=1, upperThreshold=1)
+    difference_array = sitk.GetArrayFromImage(difference)
+    volume_inside = np.sum(sitk.GetArrayFromImage(inside_body), axis=(1, 2))
+    volume_expanded = np.sum(difference_array, axis=(1, 2))
+    fraction_inside = volume_expanded/volume_inside
+    difference_array[fraction_inside < min_fraction] = 0
+    difference = array_to_sitk(difference_array, cbct_handle)
+    dilate_filter.SetKernelRadius((expansion, expansion, expansion))
+    difference_dilated = dilate_filter.Execute(difference) # Expand the contours laterally, then mask the slices below
+    sitk.WriteImage(difference_dilated, 'Dif.mha')
+    difference_dilated_array = sitk.GetArrayFromImage(difference_dilated)
+    cbct_array[:start] = ct_array[:start]
+    cbct_array[stop:] = ct_array[stop:]
+    cbct_array[difference_dilated_array == 1] = ct_array[difference_dilated_array == 1]
+    padded_cbct_handle = array_to_sitk(cbct_array, cbct_handle)
+    return padded_cbct_handle
+
+
 def createDRRs(patient_path, out_path_base='.'):
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
     if not os.path.exists(primary_CT_path):
@@ -269,16 +309,17 @@ def createDRRs(patient_path, out_path_base='.'):
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
         registered_handle = sitk.ReadImage(CBCT_File)
-        pad_cbct(registered_handle, CT_handle)
+        padded_cbct = pad_cbct(registered_handle, CT_handle, expansion=2, min_fraction=0.1)
+        sitk.WriteImage(padded_cbct, CBCT_File.replace("Registered_CBCT", "Padded_CBCT"))
     create_drr(CT_handle, gantry_angle=0, sid=1000, spd=1540, out_path=os.path.join(out_path_base, 'Primary_CT_DRR.mha'))
 
 
 def main():
     patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
     out_path_base = '.'
-    if True:
-        create_registered_cbct(patient_path=patient_path, out_path_base=out_path_base)
     if False:
+        create_registered_cbct(patient_path=patient_path, out_path_base=out_path_base)
+    if True:
         createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
     if False:
         expandDRR(patient_path='.')
