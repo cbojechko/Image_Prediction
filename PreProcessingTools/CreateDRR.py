@@ -241,7 +241,7 @@ def create_registered_cbct(patient_path, out_path_base='.'):
                     sitk.WriteImage(cbct_handle, os.path.join(out_path_base, "CBCT_{}.mha".format(date)))
                     registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
                                                       moving_series_instance_uid=from_uid,
-                                                      dicom_registration=ds, min_value=-3000, method=sitk.sitkLinear)
+                                                      dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
                     sitk.WriteImage(registered_handle, os.path.join(out_path_base, "Registered_CBCT_{}.mha".format(date)))
     return None
 
