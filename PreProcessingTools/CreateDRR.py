@@ -203,7 +203,43 @@ def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
     return outside_body
 
 
+def create_registered_CBCT(patient_path):
+    Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
+    Dicom_reader.down_folder(os.path.join(patient_path, 'CT'))
+    CT_SIUID = None
+    for index in Dicom_reader.indexes_with_contours:
+        if Dicom_reader.series_instances_dictionary[index]['Description'] is not None:
+            Dicom_reader.set_index(index)  # Primary CT
+            Dicom_reader.get_images()
+            CT_handle = Dicom_reader.dicom_handle
+            sitk.WriteImage(CT_handle, os.path.join(patient_path, "Primary_CT.mha"))
+            CT_SIUID = Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID']
+
+    reg_path = os.path.join(patient_path, 'REG')
+    for file in os.listdir(reg_path):
+        ds = pydicom.read_file(os.path.join(reg_path, file))
+        for ref in ds.ReferencedSeriesSequence:
+            from_uid = ref.SeriesInstanceUID
+            if from_uid == CT_SIUID:
+                continue
+            for index in Dicom_reader.indexes_with_contours:
+                if Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID'] == from_uid:
+                    Dicom_reader.set_index(index)  # Primary CT
+                    Dicom_reader.get_images()
+                    date = Dicom_reader.reader.GetMetaData(0, "0008|0022")
+                    cbct_handle = Dicom_reader.dicom_handle
+                    sitk.WriteImage(cbct_handle, os.path.join('.', "CBCT_{}.mha".format(index)))
+                    registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
+                                                      moving_series_instance_uid=from_uid,
+                                                      dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
+                    registered_handle = array_to_sitk(cbct_array, registered_handle)
+                    sitk.WriteImage(registered_handle, os.path.join('.', "Registered_CBCT_{}.mha".format(index)))
+    return None
+
+
 def createDRRs(patient_path):
+    primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
+    if not os.path.exists()
     dilate_filter = sitk.BinaryDilateImageFilter()
     dilate_filter.SetKernelType(sitk.sitkBall)
     dilate_filter.SetKernelRadius((0, 0, 5))
@@ -224,7 +260,7 @@ def createDRRs(patient_path):
             CT_handle = Dicom_reader.dicom_handle
             ct_array = Dicom_reader.ArrayDicom
             sitk.WriteImage(CT_handle, os.path.join(patient_path, "Primary_CT.mha"))
-            CT_SIUID = Dicom_reader.series_instances_dictionary[6]['SeriesInstanceUID']
+            CT_SIUID = Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID']
 
     reg_path = os.path.join(patient_path, 'REG')
     for file in os.listdir(reg_path):
@@ -255,6 +291,7 @@ def createDRRs(patient_path):
 
 def main():
     patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
+    create_registered_CBCT(patient_path=patient_path)
     if True:
         createDRRs(patient_path=patient_path)
     if False:
