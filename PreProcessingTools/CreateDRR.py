@@ -347,7 +347,6 @@ def main():
                 create_padded_cbcts(patient_path=patient_path)
             if False:
                 createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
-            break
     if False:
         expandDRR(patient_path='.')
     return None
