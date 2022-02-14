@@ -241,11 +241,18 @@ def create_registered_cbct(patient_path, out_path_base='.'):
                     sitk.WriteImage(cbct_handle, os.path.join(out_path_base, "CBCT_{}.mha".format(date)))
                     registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
                                                       moving_series_instance_uid=from_uid,
-                                                      dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
+                                                      dicom_registration=ds, min_value=-3000, method=sitk.sitkLinear)
                     sitk.WriteImage(registered_handle, os.path.join(out_path_base, "Registered_CBCT_{}.mha".format(date)))
     return None
 
 
+def pad_cbct(cbct_handle: sitk.Image, ct_handle: sitk.Image):
+    cbct_array = sitk.GetArrayFromImage(cbct_handle)
+    """
+    The goal here is to find the 'start' and 'stop' of the registered CBCT
+    Then, we'll merge the CBCT and CT to match that merging angle, with an overlap of 10 cm
+    """
+    min_values = np.min(cbct_array, axis=(0, 1)) # Just get the minimum values, looking for start and st
 def createDRRs(patient_path, out_path_base='.'):
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
     if not os.path.exists(primary_CT_path):
@@ -255,53 +262,24 @@ def createDRRs(patient_path, out_path_base='.'):
     fid = open(primary_CTSUID_path)
     CT_SIUID = fid.readline()
     fid.close()
-    CT_handle = sitk.ReadImage(os.path.join(out_path_base, "Primary_CT.mha"))
+    CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
     dilate_filter = sitk.BinaryDilateImageFilter()
     dilate_filter.SetKernelType(sitk.sitkBall)
     dilate_filter.SetKernelRadius((0, 0, 5))
-    Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
-    Dicom_reader.down_folder(os.path.join(patient_path, 'CT'))
-    # for index in Dicom_reader.indexes_with_contours:
-    #   Dicom_reader.set_index(index)
-    #   Dicom_reader.get_images()
-    #   date = Dicom_reader.reader.GetMetaData(0, "0008|0022")
-    #   print(index)
-    #   print(date)
-    # Loading 3D CT image
-    reg_path = os.path.join(patient_path, 'REG')
-    for file in os.listdir(reg_path):
-        ds = pydicom.read_file(os.path.join(reg_path, file))
-        for ref in ds.ReferencedSeriesSequence:
-            from_uid = ref.SeriesInstanceUID
-            if from_uid == CT_SIUID:
-                continue
-            for index in Dicom_reader.indexes_with_contours:
-                if Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID'] == from_uid:
-                    Dicom_reader.set_index(index)  # Primary CT
-                    Dicom_reader.get_images()
-                    cbct_handle = Dicom_reader.dicom_handle
-                    sitk.WriteImage(cbct_handle, os.path.join('.', "CBCT_{}.mha".format(index)))
-                    registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
-                                                      moving_series_instance_uid=from_uid,
-                                                      dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
-                    outside_body = get_outside_body_contour(registered_handle, lowerThreshold=-2000, upperThreshold=-300)
-                    dilated_handle = dilate_filter.Execute(outside_body)
-                    cbct_array = sitk.GetArrayFromImage(registered_handle)
-                    cbct_array[sitk.GetArrayFromImage(dilated_handle) == 1] = ct_array[sitk.GetArrayFromImage(dilated_handle) == 1]
-                    registered_handle = array_to_sitk(cbct_array, registered_handle)
-                    sitk.WriteImage(registered_handle, os.path.join('.', "Registered_CBCT_{}.mha".format(index)))
-                    create_drr(registered_handle, gantry_angle=0, sid=1000, spd=1540,
-                               out_path=os.path.join('.', 'CBCT_{}_DRR.mha'.format(index)))
-    create_drr(CT_handle, gantry_angle=0, sid=1000, spd=1540, out_path=os.path.join('.', 'Primary_CT_DRR.mha'))
+    CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
+    for CBCT_File in CBCT_Files:
+        registered_handle = sitk.ReadImage(CBCT_File)
+        pad_cbct(registered_handle, CT_handle)
+    create_drr(CT_handle, gantry_angle=0, sid=1000, spd=1540, out_path=os.path.join(out_path_base, 'Primary_CT_DRR.mha'))
 
 
 def main():
     patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
     out_path_base = '.'
-    if False:
-        create_registered_cbct(patient_path=patient_path, out_path_base=out_path_base)
     if True:
-        createDRRs(patient_path=patient_path, out_path_base=out_path_base)
+        create_registered_cbct(patient_path=patient_path, out_path_base=out_path_base)
+    if False:
+        createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
     if False:
         expandDRR(patient_path='.')
     return None
