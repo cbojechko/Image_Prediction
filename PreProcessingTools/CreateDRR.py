@@ -3,7 +3,7 @@ from glob import glob
 from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
 import os
-# from itk import RTK as rtk
+from tqdm import tqdm
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
@@ -208,9 +208,12 @@ def create_registered_cbct(patient_path):
         print("No primary CT for {}".format(patient_path))
         return None
     out_folder = os.path.join(patient_path, "Niftiis")
+    status_file = os.path.join(out_folder, "Finished_Reg_CBCT.txt")
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
-    Dicom_reader = DicomReaderWriter(description='Examples', verbose=True)
+    if os.path.exists(status_file):
+        return None
+    Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
     CT_SIUID = None
     primary_CTSUID_path = os.path.join(out_folder, "PrimaryCTSIUD.txt")
     if not os.path.exists(primary_CTSUID_path):
@@ -252,6 +255,8 @@ def create_registered_cbct(patient_path):
                                                           moving_series_instance_uid=from_uid,
                                                           dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
                         sitk.WriteImage(registered_handle, out_reg_file)
+    fid = open(status_file, 'w+')
+    fid.close()
     return None
 
 
@@ -307,6 +312,9 @@ def create_padded_cbcts(patient_path):
     if not os.path.exists(primary_CT_path):
         print("Primary CT does not exist!")
         return None
+    status_file = os.path.join(patient_path, "Finished_Padded_CBCT.txt")
+    if os.path.exists(status_file):
+        return None
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
@@ -316,6 +324,8 @@ def create_padded_cbcts(patient_path):
         registered_handle = sitk.ReadImage(CBCT_File)
         padded_cbct = pad_cbct(registered_handle, CT_handle, expansion=2, min_fraction=0.1)
         sitk.WriteImage(padded_cbct, out_file)
+    fid = open(status_file, 'w+')
+    fid.close()
     return None
 
 
@@ -323,6 +333,9 @@ def createDRRs(patient_path):
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
     if not os.path.exists(primary_CT_path):
         print("Primary CT does not exist!")
+        return None
+    status_file = os.path.join(patient_path, "Finished_DRR.txt")
+    if os.path.exists(status_file):
         return None
     Padded_CBCT_Files = glob(os.path.join(patient_path, 'Padded_CBCT*.mha'))
     for Padded_CBCT_File in Padded_CBCT_Files:
@@ -332,21 +345,72 @@ def createDRRs(patient_path):
         padded_handle = sitk.ReadImage(Padded_CBCT_File)
         create_drr(padded_handle, gantry_angle=0, sid=1000, spd=1540,
                    out_path=out_file)
+    fid = open(status_file, 'w+')
+    fid.close()
+    return None
+
+
+class FluenceReader(object):
+    def __init__(self):
+        self.reader = sitk.ImageSeriesReader()
+        self.reader.MetaDataDictionaryArrayUpdateOn()
+        self.reader.LoadPrivateTagsOn()
+        self.reader.SetOutputPixelType(sitk.sitkFloat32)
+        self.dicom_handle = None
+
+    def set_file(self, file_name):
+        self.reader.SetFileNames([file_name])
+        self.dicom_handle = self.reader.Execute()
+
+    def return_date(self):
+        return self.reader.GetMetaData(0, "0008|0022")
+
+    def return_gantry_angle(self):
+        return self.reader.GetMetaData(0, "300a|011e")
+
+    def return_collimator_angle(self):
+        return self.reader.GetMetaData(0, "300a|0120")
+
+    def get_all_info(self):
+        for key in self.reader.GetMetaDataKeys(0):
+            print("{} is {}".format(key, self.reader.GetMetaData(0, key)))
+        return None
+
+
+def create_fluence(patient_path):
+    fluence_reader = FluenceReader()
+    Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
+    Dicom_reader.down_folder(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
+    dicom_files = glob(os.path.join(patient_path, "RTIMAGE", "*.dcm"))
+    for file in dicom_files:
+        ds = pydicom.read_file(file)
+        fluence_reader.set_file(file)
+        fluence_reader.return_date()
+        print(ds.Modality)
+        xxx = 1
+    Dicom_reader.set_index(1)
+    Dicom_reader.get_images()
+    sitk.WriteImage(Dicom_reader.dicom_handle, "fluence.mha")
+    xxx = 1
     return None
 
 
 def main():
-    patient_path = r'C:\Users\b5anderson\Desktop\Modular_Projects\Image_Prediction\Data\Patient'
     path = r'R:\Bojechko'
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(path, patient_data)
-        for patient_MRN in os.listdir(base_patient_path):
+        MRN_list = os.listdir(base_patient_path)
+        pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
+        for patient_MRN in MRN_list:
+            print(patient_MRN)
             patient_path = os.path.join(base_patient_path, patient_MRN)
-            if True:
+            if False:
                 create_registered_cbct(patient_path=patient_path)
                 create_padded_cbcts(patient_path=patient_path)
-            if False:
+            if True:
+                create_fluence(patient_path=patient_path)
                 createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
+            pbar.update()
     if False:
         expandDRR(patient_path='.')
     return None
