@@ -376,22 +376,61 @@ class FluenceReader(object):
             print("{} is {}".format(key, self.reader.GetMetaData(0, key)))
         return None
 
+    def return_image_info(self):
+        return self.reader.GetMetaData(0, "0008|0008")
 
-def create_fluence(patient_path):
+    def return_key_info(self, key):
+        return self.reader.GetMetaData(0, key)
+
+
+def return_plan_dictionary(patient_path):
+    ds_plan = pydicom.read_file(glob(os.path.join(patient_path, "RTPLAN", "*.dcm"))[0])
+    plan_dictionary = {}
+    for beam_sequence in ds_plan.BeamSequence:
+        if beam_sequence.TreatmentDeliveryType == "SETUP":
+            continue
+        plan_dictionary[beam_sequence.BeamNumber] = {"Iso": beam_sequence.ControlPointSequence[0].IsocenterPosition,
+                                                     "Gantry": round(beam_sequence.ControlPointSequence[0].GantryAngle)}
+    for fraction_sequence in ds_plan.FractionGroupSequence:
+        for beam_sequence in fraction_sequence.ReferencedBeamSequence:
+            if beam_sequence.ReferencedBeamNumber in plan_dictionary:
+                plan_dictionary[beam_sequence.ReferencedBeamNumber]["MU"] = beam_sequence.BeamMeterset
+    return plan_dictionary
+
+
+def create_transmission(patient_path):
     fluence_reader = FluenceReader()
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
     Dicom_reader.down_folder(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
     dicom_files = glob(os.path.join(patient_path, "RTIMAGE", "*.dcm"))
+    dates = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT_*"))
+    dates = [i.split("_")[-1].split('.')[0] for i in dates]
+    plan_dictionary = return_plan_dictionary(patient_path)
     for file in dicom_files:
         ds = pydicom.read_file(file)
         fluence_reader.set_file(file)
-        fluence_reader.return_date()
-        print(ds.Modality)
-        xxx = 1
-    Dicom_reader.set_index(1)
-    Dicom_reader.get_images()
-    sitk.WriteImage(Dicom_reader.dicom_handle, "fluence.mha")
-    xxx = 1
+        image_type = fluence_reader.return_image_info()
+        date = fluence_reader.return_date()
+        if image_type.find("DRR") != -1:
+            continue
+        referenced_beam_number = int(fluence_reader.return_key_info("300c|0006"))
+        if referenced_beam_number not in plan_dictionary:
+            continue
+        if image_type.find("CALCULATED_DOSE") != -1:
+            description = "PDOS"
+            fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
+        elif image_type.find("ACQUIRED_DOSE") != -1:
+            description = "Fluence"
+            if date not in dates:
+                continue
+        elif image_type.find("PREDICTED") != -1:
+            description = "Predicted"
+        else:
+            continue
+        fluence_reader.dicom_handle.SetOrigin(plan_dictionary[referenced_beam_number]["Iso"])
+        gantry = round(float(fluence_reader.return_gantry_angle()))
+        out_file = os.path.join(patient_path, "Niftiis", "{}_G{}_{}.mha".format(description, gantry, date))
+        sitk.WriteImage(fluence_reader.dicom_handle, out_file)
     return None
 
 
@@ -408,9 +447,10 @@ def main():
                 create_registered_cbct(patient_path=patient_path)
                 create_padded_cbcts(patient_path=patient_path)
             if True:
-                create_fluence(patient_path=patient_path)
-                createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
+                create_transmission(patient_path=patient_path)
+                #createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
             pbar.update()
+            break
     if False:
         expandDRR(patient_path='.')
     return None
