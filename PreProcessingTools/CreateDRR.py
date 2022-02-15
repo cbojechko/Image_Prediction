@@ -48,19 +48,19 @@ def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 
     return output
 
 
-def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path.join('.', 'Output.mha')):
+def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path.join('.', 'Output.mha'),
+               translations=(0, 0, 0)):
     """
     :param sitk_handle: handle from SimpleITK, usually from DICOMRTTool
     :param sid: source to iso-center distance, in mm
     :param spd: source to panel distance, in mm
     :param gantry_angle: angle of gantry
     :param out_path: name of out file
+    :param translations: translations in x, y, z direction
     :return:
     """
     image = ConvertSimpleItkImageToItkImage(sitk_handle, itk.F)
     rotations = [0, 0, gantry_angle]  # x, y, z
-
-    translations = [0, 0, 0]  # x, y, z
 
     rprojection = 0.  # Projection angle in degrees
     threshold = -1000
@@ -330,23 +330,17 @@ def create_padded_cbcts(patient_path):
 
 
 def createDRRs(patient_path):
-    primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
-    if not os.path.exists(primary_CT_path):
-        print("Primary CT does not exist!")
-        return None
-    status_file = os.path.join(patient_path, "Finished_DRR.txt")
-    if os.path.exists(status_file):
-        return None
-    Padded_CBCT_Files = glob(os.path.join(patient_path, 'Padded_CBCT*.mha'))
-    for Padded_CBCT_File in Padded_CBCT_Files:
-        out_file = Padded_CBCT_File.replace("Padded_CBCT", "DRR")
-        if os.path.exists(out_file):
-            continue
-        padded_handle = sitk.ReadImage(Padded_CBCT_File)
-        create_drr(padded_handle, gantry_angle=0, sid=1000, spd=1540,
-                   out_path=out_file)
-    fid = open(status_file, 'w+')
-    fid.close()
+    plan_dictionary = return_plan_dictionary(patient_path)
+    padded_cbcts = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT*"))
+    for padded_cbct_file in padded_cbcts:
+        cbct_handle = sitk.ReadImage(padded_cbct_file)
+        out_file = padded_cbct_file.replace("Padded_CBCT", "DRR")
+        for beam in plan_dictionary:
+            gantry_angle = beam["Gantry"]
+            iso_center = beam["Iso"]
+            translation = iso_center - cbct_handle.GetOrigin()
+            create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
+                       out_path=out_file, translations=translation)
     return None
 
 
@@ -447,8 +441,8 @@ def main():
                 create_registered_cbct(patient_path=patient_path)
                 create_padded_cbcts(patient_path=patient_path)
             if True:
-                create_transmission(patient_path=patient_path)
-                #createDRRs(patient_path=out_path_base, out_path_base=out_path_base)
+                #create_transmission(patient_path=patient_path)
+                createDRRs(patient_path=out_path_base)
             pbar.update()
             break
     if False:
