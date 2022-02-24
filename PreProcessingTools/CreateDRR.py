@@ -329,6 +329,20 @@ def create_padded_cbcts(patient_path):
     return None
 
 
+def update_origin_fluence(patient_path):
+    drr_files = glob(os.path.join(patient_path, "Niftiis", "DRR_*"))
+    for drr_file in drr_files:
+        drr_handle = sitk.ReadImage(drr_file)
+        iso_center = drr_handle.GetOrigin()
+        angle_date = drr_file.split('DRR_')[-1]
+        fluence_files = glob(os.path.join(patient_path, "Niftiis", "Fluence*{}".format(angle_date)))
+        for fluence_file in fluence_files:
+            fluence_handle = sitk.ReadImage(fluence_file)
+            fluence_handle.SetOrigin(iso_center)
+            sitk.WriteImage(fluence_handle, fluence_file)
+    return None
+
+
 def createDRRs(patient_path):
     plan_dictionary = return_plan_dictionary(patient_path)
     padded_cbcts = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT*"))
@@ -348,37 +362,38 @@ def createDRRs(patient_path):
 
 class FluenceReader(object):
     def __init__(self):
-        self.reader = sitk.ImageFileReader()
+        self.reader = sitk.ImageSeriesReader()
+        self.reader.MetaDataDictionaryArrayUpdateOn()
         self.reader.LoadPrivateTagsOn()
         self.reader.SetOutputPixelType(sitk.sitkFloat32)
         self.dicom_handle = None
 
     def set_file(self, file_name):
-        self.reader.SetFileName(file_name)
-        self.reader.ReadImageInformation()
+        self.reader.SetFileNames([file_name])
+        self.dicom_handle = self.reader.Execute()
 
     def load_file(self):
         self.dicom_handle = self.reader.Execute()
 
     def return_date(self):
-        return self.reader.GetMetaData("0008|0022")
+        return self.reader.GetMetaData(0, "0008|0022")
 
     def return_gantry_angle(self):
-        return self.reader.GetMetaData("300a|011e")
+        return self.reader.GetMetaData(0, "300a|011e")
 
     def return_collimator_angle(self):
-        return self.reader.GetMetaData("300a|0120")
+        return self.reader.GetMetaData(0, "300a|0120")
 
     def get_all_info(self):
-        for key in self.reader.GetMetaDataKeys():
-            print("{} is {}".format(key, self.reader.GetMetaData(key)))
+        for key in self.reader.GetMetaDataKeys(0):
+            print("{} is {}".format(key, self.reader.GetMetaData(0, key)))
         return None
 
     def return_image_info(self):
-        return self.reader.GetMetaData("0008|0008")
+        return self.reader.GetMetaData(0, "0008|0008")
 
     def return_key_info(self, key):
-        return self.reader.GetMetaData(key)
+        return self.reader.GetMetaData(0, key)
 
 
 def return_plan_dictionary(patient_path):
@@ -398,7 +413,6 @@ def return_plan_dictionary(patient_path):
 
 def create_transmission(patient_path):
     fluence_reader = FluenceReader()
-    reader = sitk.ImageFileReader()
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
     Dicom_reader.down_folder(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
     dicom_files = glob(os.path.join(patient_path, "RTIMAGE", "*.dcm"))
@@ -409,7 +423,6 @@ def create_transmission(patient_path):
         date_dictionary[cbct.split("_")[-1].split('.')[0]] = cbct
     plan_dictionary = return_plan_dictionary(patient_path)
     for file in dicom_files:
-        ds = pydicom.read_file(file)
         fluence_reader.set_file(file)
         image_type = fluence_reader.return_image_info()
         date = fluence_reader.return_date()
@@ -421,7 +434,6 @@ def create_transmission(patient_path):
             continue
         if image_type.find("CALCULATED_DOSE") != -1:
             description = "PDOS"
-            fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
         elif image_type.find("ACQUIRED_DOSE") != -1:
             description = "Fluence"
             if date not in dates:
@@ -436,7 +448,6 @@ def create_transmission(patient_path):
         fluence_reader.load_file()
         if description == "PDOS":
             fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
-        fluence_reader.dicom_handle.SetOrigin(plan_dictionary[referenced_beam_number]["Iso"])
         sitk.WriteImage(fluence_reader.dicom_handle, out_file)
     return None
 
@@ -454,8 +465,9 @@ def main():
                 create_registered_cbct(patient_path=patient_path)
                 create_padded_cbcts(patient_path=patient_path)
             if True:
-                create_transmission(patient_path=patient_path)
-                createDRRs(patient_path=patient_path)
+                #create_transmission(patient_path=patient_path)
+                #createDRRs(patient_path=patient_path)
+                update_origin_fluence(patient_path=patient_path)
             pbar.update()
             break
     if False:
