@@ -329,17 +329,31 @@ def create_padded_cbcts(patient_path):
     return None
 
 
-def update_origin_fluence(patient_path):
+def update_origin(patient_path):
     drr_files = glob(os.path.join(patient_path, "Niftiis", "DRR_*"))
+    angle_dictionary = {}
+    image_reader = sitk.ImageFileReader()
+    image_reader.SetFileName(os.path.join(patient_path, "Niftiis", "Primary_CT.mha"))
+    image_reader.ReadImageInformation()
     for drr_file in drr_files:
-        drr_handle = sitk.ReadImage(drr_file)
-        iso_center = drr_handle.GetOrigin()
+        image_reader.SetFileName(drr_file)
+        image_reader.ReadImageInformation()
+        iso_center = image_reader.GetOrigin()
         angle_date = drr_file.split('DRR_')[-1]
+        angle = angle_date.split('_')[0]
+        if angle not in angle_dictionary:
+            angle_dictionary[angle] = iso_center
         fluence_files = glob(os.path.join(patient_path, "Niftiis", "Fluence*{}".format(angle_date)))
         for fluence_file in fluence_files:
             fluence_handle = sitk.ReadImage(fluence_file)
             fluence_handle.SetOrigin(iso_center)
             sitk.WriteImage(fluence_handle, fluence_file)
+    for angle in angle_dictionary.keys():
+        pdos_files = glob(os.path.join(patient_path, "Niftiis", "PDOS*{}*".format(angle)))
+        for pdos_file in pdos_files:
+            pdos_handle = sitk.ReadImage(pdos_file)
+            pdos_handle.SetOrigin(angle_dictionary[angle])
+            sitk.WriteImage(pdos_handle, pdos_file)
     return None
 
 
@@ -465,9 +479,9 @@ def main():
                 create_registered_cbct(patient_path=patient_path)
                 create_padded_cbcts(patient_path=patient_path)
             if True:
-                #create_transmission(patient_path=patient_path)
-                #createDRRs(patient_path=patient_path)
-                update_origin_fluence(patient_path=patient_path)
+                create_transmission(patient_path=patient_path)
+                createDRRs(patient_path=patient_path)
+                update_origin(patient_path=patient_path)
             pbar.update()
             break
     if False:
