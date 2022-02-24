@@ -468,7 +468,7 @@ def create_transmission(patient_path, rewrite):
 
 def main():
     path = r'R:\Bojechko'
-    rewrite = True
+    rewrite = False
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(path, patient_data)
         MRN_list = os.listdir(base_patient_path)
