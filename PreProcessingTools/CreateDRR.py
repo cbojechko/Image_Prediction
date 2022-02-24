@@ -357,7 +357,7 @@ def update_origin(patient_path):
     return None
 
 
-def createDRRs(patient_path):
+def createDRRs(patient_path, rewrite):
     plan_dictionary = return_plan_dictionary(patient_path)
     padded_cbcts = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT*"))
     for padded_cbct_file in padded_cbcts:
@@ -366,7 +366,7 @@ def createDRRs(patient_path):
             gantry_angle = beam["Gantry"]
             iso_center = beam["Iso"]
             out_file = padded_cbct_file.replace("Padded_CBCT", "DRR_G{}".format(gantry_angle))
-            if os.path.exists(out_file):
+            if os.path.exists(out_file) and not rewrite:
                 continue
             cbct_handle = sitk.ReadImage(padded_cbct_file)
             create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
@@ -425,7 +425,7 @@ def return_plan_dictionary(patient_path):
     return plan_dictionary
 
 
-def create_transmission(patient_path):
+def create_transmission(patient_path, rewrite):
     fluence_reader = FluenceReader()
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
     Dicom_reader.down_folder(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
@@ -457,7 +457,7 @@ def create_transmission(patient_path):
         else:
             continue
         out_file = os.path.join(patient_path, "Niftiis", "{}_G{}_{}.mha".format(description, gantry, date))
-        if os.path.exists(out_file):
+        if os.path.exists(out_file) and not rewrite:
             continue
         fluence_reader.load_file()
         if description == "PDOS":
@@ -468,6 +468,7 @@ def create_transmission(patient_path):
 
 def main():
     path = r'R:\Bojechko'
+    rewrite = True
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(path, patient_data)
         MRN_list = os.listdir(base_patient_path)
@@ -479,11 +480,10 @@ def main():
                 create_registered_cbct(patient_path=patient_path)
                 create_padded_cbcts(patient_path=patient_path)
             if True:
-                create_transmission(patient_path=patient_path)
-                createDRRs(patient_path=patient_path)
+                create_transmission(patient_path=patient_path, rewrite=rewrite)
+                createDRRs(patient_path=patient_path, rewrite=rewrite)
                 update_origin(patient_path=patient_path)
             pbar.update()
-            break
     if False:
         expandDRR(patient_path='.')
     return None
