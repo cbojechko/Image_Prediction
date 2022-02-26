@@ -77,7 +77,9 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
 
     InputImageType = itk.Image[itk.F, Dimension]
 
-    origin = image.GetOrigin()
+    output_origin = [image.GetOrigin()[i] for i in range(3)]
+    resample_origin = [image.GetOrigin()[i] for i in range(3)]
+    output_origin[-1] = -spd
 
     spacing = image.GetSpacing()
 
@@ -93,8 +95,8 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     transform.SetRotation(0, 0, 0) # Do not change these!
     isocenter = [0, 0, 0]
     for i in range(3):
-        isocenter[i] = origin[i] + imRes[i] * imSize[i] / 2
-    transform.SetCenter(isocenter)
+        isocenter[i] = image.GetOrigin()[i] + imRes[i] * imSize[i] / 2
+    transform.SetCenter(isocenter) # Maybe this should be 0,0,0... or the plan isocenter
 
     interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction[InputImageType, itk.D].New()
     interpolator.SetProjectionAngle(np.deg2rad(rprojection))
@@ -110,11 +112,12 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     o2Dx = (dx - 1) / 2
     o2Dy = (dy - 1) / 2
 
-    origin[0] += im_sx * o2Dx
-    origin[1] += im_sy * o2Dy
-    origin[2] = -spd
-
-    final_filter.SetOutputOrigin(origin)
+    resample_origin[0] += im_sx * o2Dx
+    resample_origin[1] += im_sy * o2Dy
+    resample_origin[2] = -spd
+    output_origin[0] += translations[0]
+    output_origin[1] += translations[1]
+    final_filter.SetOutputOrigin(resample_origin)
     final_filter.SetOutputDirection(image.GetDirection())
     final_filter.Update()
 
@@ -124,7 +127,9 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
 
     writer = itk.ImageFileWriter[InputImageType].New()
     writer.SetFileName(out_path)
-    writer.SetInput(flipFilter.GetOutput())
+    output = flipFilter.GetOutput()
+    output.SetOrigin(output_origin)
+    writer.SetInput(output)
     writer.Update()
     return None
 
@@ -443,6 +448,8 @@ def create_transmission(patient_path, rewrite):
         if image_type.find("DRR") != -1:
             continue
         gantry = round(float(fluence_reader.return_gantry_angle()))
+        if gantry == 360:
+            gantry = 0
         referenced_beam_number = int(fluence_reader.return_key_info("300c|0006"))
         if referenced_beam_number not in plan_dictionary:
             continue
@@ -468,10 +475,14 @@ def create_transmission(patient_path, rewrite):
 
 def main():
     path = r'R:\Bojechko'
-    rewrite = False
+    rewrite = True
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(path, patient_data)
         MRN_list = os.listdir(base_patient_path)
+        # if os.path.exists(os.path.join('.', 'MRN')):
+        #     fid = open(os.path.join('.', 'MRN'))
+        #     MRN_list = [fid.readline()]
+        #     fid.close()
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
         for patient_MRN in MRN_list:
             print(patient_MRN)
@@ -480,10 +491,11 @@ def main():
                 create_registered_cbct(patient_path=patient_path)
                 create_padded_cbcts(patient_path=patient_path)
             if True:
-                create_transmission(patient_path=patient_path, rewrite=rewrite)
+                #create_transmission(patient_path=patient_path, rewrite=rewrite)
                 createDRRs(patient_path=patient_path, rewrite=rewrite)
-                update_origin(patient_path=patient_path)
+                #update_origin(patient_path=patient_path)
             pbar.update()
+            break
     if False:
         expandDRR(patient_path='.')
     return None
