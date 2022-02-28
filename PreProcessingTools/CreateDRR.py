@@ -22,8 +22,8 @@ def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 
     imRes = itk_image.GetSpacing()
     imDirection = itk_image.GetDirection()
     isocenter = [0, 0, 0]
-    for i in range(3):
-        isocenter[i] = origin[i] + imRes[i] * imSize[i] / 2
+    # for i in range(3):
+    #     isocenter[i] = origin[i] + imRes[i] * imSize[i] / 2
 
     transform = itk.Euler3DTransform[itk.D].New()
     transform.SetComputeZYX(True)
@@ -76,16 +76,20 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     Dimension = 3
 
     InputImageType = itk.Image[itk.F, Dimension]
-
+    image_origin = [image.GetOrigin()[i] for i in range(3)]
+    image_origin[0] += translations[0]
+    image_origin[1] += translations[1]
+    image_origin[2] += translations[2]
+    image.SetOrigin(image_origin)
     output_origin = [image.GetOrigin()[i] for i in range(3)]
-    resample_origin = [image.GetOrigin()[i] for i in range(3)]
     output_origin[-1] = -spd
+    resample_origin = [image.GetOrigin()[i] for i in range(3)]
 
     spacing = image.GetSpacing()
 
     final_filter = itk.ResampleImageFilter[InputImageType, InputImageType].New()
     final_filter.SetDefaultPixelValue(0)
-    transformed_image = rotate_and_translate_image(image, translations=translations, rotations=rotations)
+    transformed_image = rotate_and_translate_image(image, translations=(0, 0, 0), rotations=rotations)
     final_filter.SetInput(transformed_image)
 
     transform = itk.Euler3DTransform[itk.D].New()
@@ -96,7 +100,7 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     isocenter = [0, 0, 0]
     for i in range(3):
         isocenter[i] = image.GetOrigin()[i] + imRes[i] * imSize[i] / 2
-    transform.SetCenter(isocenter) # Maybe this should be 0,0,0... or the plan isocenter
+    transform.SetCenter(isocenter)
 
     interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction[InputImageType, itk.D].New()
     interpolator.SetProjectionAngle(np.deg2rad(rprojection))
@@ -115,8 +119,6 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     resample_origin[0] += im_sx * o2Dx
     resample_origin[1] += im_sy * o2Dy
     resample_origin[2] = -spd
-    output_origin[0] += translations[0]
-    output_origin[1] += translations[1]
     final_filter.SetOutputOrigin(resample_origin)
     final_filter.SetOutputDirection(image.GetDirection())
     final_filter.Update()
@@ -208,7 +210,7 @@ def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
     return outside_body
 
 
-def create_registered_cbct(patient_path):
+def create_registered_cbct(patient_path, rewrite=False):
     if not os.path.exists(os.path.join(patient_path, 'pCT')):
         print("No primary CT for {}".format(patient_path))
         return None
@@ -216,7 +218,7 @@ def create_registered_cbct(patient_path):
     status_file = os.path.join(out_folder, "Finished_Reg_CBCT.txt")
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
-    if os.path.exists(status_file):
+    if os.path.exists(status_file) and not rewrite:
         return None
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
     CT_SIUID = None
@@ -331,6 +333,21 @@ def create_padded_cbcts(patient_path):
         sitk.WriteImage(padded_cbct, out_file)
     fid = open(status_file, 'w+')
     fid.close()
+    return None
+
+
+def shift_panel_origin(patient_path):
+    fluence_files = glob(os.path.join(patient_path, "Niftiis", "Fluence_*"))
+    fluence_files += glob(os.path.join(patient_path, "Niftiis", "PDOS_*"))
+    for fluence_file in fluence_files:
+        fluence_handle = sitk.ReadImage(fluence_file)
+        origin = fluence_handle.GetOrigin()
+        spacing = fluence_handle.GetSpacing()
+        size = fluence_handle.GetSize()
+        new_origin = [origin[i] - spacing[i] * size[i] / 2 for i in range(2)]
+        new_origin.append(0)
+        fluence_handle.SetOrigin(new_origin)
+        sitk.WriteImage(fluence_handle, fluence_file)
     return None
 
 
@@ -486,14 +503,15 @@ def main():
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
         for patient_MRN in MRN_list:
             print(patient_MRN)
+            patient_MRN = '05079090'
             patient_path = os.path.join(base_patient_path, patient_MRN)
             if False:
-                create_registered_cbct(patient_path=patient_path)
+                create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
                 create_padded_cbcts(patient_path=patient_path)
             if True:
                 #create_transmission(patient_path=patient_path, rewrite=rewrite)
                 createDRRs(patient_path=patient_path, rewrite=rewrite)
-                #update_origin(patient_path=patient_path)
+                #shift_panel_origin(patient_path=patient_path)
             pbar.update()
             break
     if False:
