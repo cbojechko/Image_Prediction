@@ -120,16 +120,16 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     final_filter.SetOutputOrigin(resample_origin)
     final_filter.SetOutputDirection(image.GetDirection())
     final_filter.Update()
+    output = final_filter.GetOutput()
+    output.SetOrigin(output_origin)
 
     flipFilter = itk.FlipImageFilter[InputImageType].New()
-    flipFilter.SetInput(final_filter.GetOutput())
+    flipFilter.SetInput(output)
     flipFilter.SetFlipAxes((False, True, False))
 
     writer = itk.ImageFileWriter[InputImageType].New()
     writer.SetFileName(out_path)
-    output = flipFilter.GetOutput()
-    output.SetOrigin(output_origin)
-    writer.SetInput(output)
+    writer.SetInput(flipFilter.GetOutput())
     writer.Update()
     return None
 
