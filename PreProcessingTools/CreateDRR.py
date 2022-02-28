@@ -97,9 +97,7 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
 
     transform.SetTranslation((0, 0, 0)) # Do not change these!
     transform.SetRotation(0, 0, 0) # Do not change these!
-    isocenter = [0, 0, 0]
-    for i in range(3):
-        isocenter[i] = image.GetOrigin()[i] + imRes[i] * imSize[i] / 2
+    isocenter = [0, 0, 0] # Project through isocenter
     transform.SetCenter(isocenter)
 
     interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction[InputImageType, itk.D].New()
