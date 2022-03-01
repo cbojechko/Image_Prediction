@@ -76,14 +76,13 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     Dimension = 3
 
     InputImageType = itk.Image[itk.F, Dimension]
-    image_origin = [image.GetOrigin()[i] for i in range(3)]
-    image_origin[0] += translations[0]
-    image_origin[1] += translations[1]
-    image_origin[2] += translations[2]
-    image.SetOrigin(image_origin)
+    input_origin = [image.GetOrigin()[i] + translations[i] for i in range(3)]
+    input_origin = [0, 0, 0]
+    print(image.GetOrigin())
+    image.SetOrigin(input_origin)
     output_origin = [image.GetOrigin()[i] for i in range(3)]
-    output_origin[-1] = -spd
-    resample_origin = [image.GetOrigin()[i] for i in range(3)]
+    output_origin[2] = -spd
+    print(output_origin)
 
     spacing = image.GetSpacing()
 
@@ -95,9 +94,11 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     transform = itk.Euler3DTransform[itk.D].New()
     transform.SetComputeZYX(True)
 
-    transform.SetTranslation((0, 0, 0)) # Do not change these!
+    transform.SetTranslation(translations) # Do not change these!
     transform.SetRotation(0, 0, 0) # Do not change these!
-    isocenter = [0, 0, 0] # Project through isocenter
+    isocenter = [0, 0, 0]
+    for i in range(3):
+        isocenter[i] = input_origin[i] + imRes[i] * imSize[i] / 2 # Center of projection is the center of the image
     transform.SetCenter(isocenter)
 
     interpolator = itk.SiddonJacobsRayCastInterpolateImageFunction[InputImageType, itk.D].New()
@@ -109,27 +110,27 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     final_filter.SetInterpolator(interpolator)
 
     final_filter.SetSize([dx, dy, 1])
-    final_filter.SetOutputSpacing(spacing)
+    final_filter.SetOutputSpacing([spacing[0], spacing[1], 1.0])
 
     o2Dx = (dx - 1) / 2
     o2Dy = (dy - 1) / 2
+    origin = [0, 0, 0]
+    origin[0] = - im_sx * o2Dx
+    origin[1] = - im_sy * o2Dy
+    origin[2] = -spd
 
-    resample_origin[0] += im_sx * o2Dx
-    resample_origin[1] += im_sy * o2Dy
-    resample_origin[2] = -spd
-    final_filter.SetOutputOrigin(resample_origin)
+    final_filter.SetOutputOrigin(origin)
     final_filter.SetOutputDirection(image.GetDirection())
     final_filter.Update()
-    output = final_filter.GetOutput()
-    output.SetOrigin(output_origin)
-
+    filter_output = final_filter.GetOutput()
+    filter_output.SetOrigin((- im_sx * o2Dx - translations[-1], - im_sy * o2Dy - translations[0], -spd))
     flipFilter = itk.FlipImageFilter[InputImageType].New()
-    flipFilter.SetInput(output)
+    flipFilter.SetInput(filter_output)
     flipFilter.SetFlipAxes((False, True, False))
-
+    output = flipFilter.GetOutput()
     writer = itk.ImageFileWriter[InputImageType].New()
     writer.SetFileName(out_path)
-    writer.SetInput(flipFilter.GetOutput())
+    writer.SetInput(output)
     writer.Update()
     return None
 
@@ -501,7 +502,6 @@ def main():
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
         for patient_MRN in MRN_list:
             print(patient_MRN)
-            patient_MRN = '05079090'
             patient_path = os.path.join(base_patient_path, patient_MRN)
             if False:
                 create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
@@ -511,7 +511,6 @@ def main():
                 createDRRs(patient_path=patient_path, rewrite=rewrite)
                 #shift_panel_origin(patient_path=patient_path)
             pbar.update()
-            break
     if False:
         expandDRR(patient_path='.')
     return None
