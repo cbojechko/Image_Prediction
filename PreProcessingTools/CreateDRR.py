@@ -350,8 +350,8 @@ def shift_panel_origin(patient_path):
         spacing = fluence_handle.GetSpacing()
         size = fluence_handle.GetSize()
         origin = [0, 0, -1540]
-        origin[0] = - spacing[0] * size[0]/2
-        origin[1] = - spacing[1] * size[1]/2
+        origin[0] = - spacing[0] * (size[0] - 1)/2
+        origin[1] = - spacing[1] * (size[1] - 1)/2
         fluence_handle.SetOrigin(origin)
         sitk.WriteImage(fluence_handle, fluence_file)
     return None
