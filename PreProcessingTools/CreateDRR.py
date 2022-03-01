@@ -48,6 +48,15 @@ def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 
     return output
 
 
+def write_itk_file(output_path, itk_file):
+    InputImageType = itk.Image[itk.F, 3]
+    writer = itk.ImageFileWriter[InputImageType].New()
+    writer.SetFileName(output_path)
+    writer.SetInput(itk_file)
+    writer.Update()
+    return None
+
+
 def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path.join('.', 'Output.mha'),
                translations=(0, 0, 0)):
     """
@@ -76,19 +85,15 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     Dimension = 3
 
     InputImageType = itk.Image[itk.F, Dimension]
-    input_origin = [image.GetOrigin()[i] + translations[i] for i in range(3)]
-    input_origin = [0, 0, 0]
-    print(image.GetOrigin())
-    image.SetOrigin(input_origin)
-    output_origin = [image.GetOrigin()[i] for i in range(3)]
-    output_origin[2] = -spd
-    print(output_origin)
-
     spacing = image.GetSpacing()
 
     final_filter = itk.ResampleImageFilter[InputImageType, InputImageType].New()
     final_filter.SetDefaultPixelValue(0)
-    transformed_image = rotate_and_translate_image(image, translations=(0, 0, 0), rotations=rotations)
+    transformed_image = rotate_and_translate_image(image, translations=translations, rotations=rotations)
+    input_origin = [0, 0, 0]
+    transformed_image.SetOrigin(input_origin)
+    output_origin = [image.GetOrigin()[i] for i in range(3)]
+    output_origin[2] = -spd
     final_filter.SetInput(transformed_image)
 
     transform = itk.Euler3DTransform[itk.D].New()
@@ -128,10 +133,7 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     flipFilter.SetInput(filter_output)
     flipFilter.SetFlipAxes((False, True, False))
     output = flipFilter.GetOutput()
-    writer = itk.ImageFileWriter[InputImageType].New()
-    writer.SetFileName(out_path)
-    writer.SetInput(output)
-    writer.Update()
+    write_itk_file(output_path=out_path, itk_file=output)
     return None
 
 
@@ -391,7 +393,7 @@ def createDRRs(patient_path, rewrite):
                 continue
             cbct_handle = sitk.ReadImage(padded_cbct_file)
             create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                       out_path=out_file, translations=[-i for i in iso_center])
+                       out_path=out_file, translations=[i for i in iso_center])
     return None
 
 
@@ -511,6 +513,7 @@ def main():
                 createDRRs(patient_path=patient_path, rewrite=rewrite)
                 #shift_panel_origin(patient_path=patient_path)
             pbar.update()
+            break
     if False:
         expandDRR(patient_path='.')
     return None
