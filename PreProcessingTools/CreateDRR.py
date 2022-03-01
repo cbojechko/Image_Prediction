@@ -22,9 +22,6 @@ def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 
     imRes = itk_image.GetSpacing()
     imDirection = itk_image.GetDirection()
     isocenter = [0, 0, 0]
-    # for i in range(3):
-    #     isocenter[i] = origin[i] + imRes[i] * imSize[i] / 2
-
     transform = itk.Euler3DTransform[itk.D].New()
     transform.SetComputeZYX(True)
     transform.SetCenter(isocenter)
@@ -89,17 +86,26 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
 
     final_filter = itk.ResampleImageFilter[InputImageType, InputImageType].New()
     final_filter.SetDefaultPixelValue(0)
-    transformed_image = rotate_and_translate_image(image, translations=translations, rotations=rotations)
+    """
+    Translate our image to put the iso-center at the center of the plan, then put the plan isocenter in the 
+    absolute center of the image (just makes everything easier...
+    """
+    image_center = [imRes[i] * imSize[i]/2 for i in range(3)]
+    shifts = [-(image.GetOrigin()[i] + image_center[i] - translations[i]) for i in range(3)]
+    transformed_image = rotate_and_translate_image(image, translations=shifts, rotations=rotations)
+    """
+    To make things easier, shift the image so the plan iso-center is the index center, then put origin at 0, 0, 0
+    """
     input_origin = [0, 0, 0]
     transformed_image.SetOrigin(input_origin)
-    output_origin = [image.GetOrigin()[i] for i in range(3)]
+    output_origin = [transformed_image.GetOrigin()[i] for i in range(3)]
     output_origin[2] = -spd
     final_filter.SetInput(transformed_image)
 
     transform = itk.Euler3DTransform[itk.D].New()
     transform.SetComputeZYX(True)
 
-    transform.SetTranslation(translations) # Do not change these!
+    transform.SetTranslation((0, 0, 0)) # Do not change these!
     transform.SetRotation(0, 0, 0) # Do not change these!
     isocenter = [0, 0, 0]
     for i in range(3):
@@ -128,7 +134,6 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     final_filter.SetOutputDirection(image.GetDirection())
     final_filter.Update()
     filter_output = final_filter.GetOutput()
-    filter_output.SetOrigin((- im_sx * o2Dx - translations[-1], - im_sy * o2Dy - translations[0], -spd))
     flipFilter = itk.FlipImageFilter[InputImageType].New()
     flipFilter.SetInput(filter_output)
     flipFilter.SetFlipAxes((False, True, False))
@@ -342,12 +347,12 @@ def shift_panel_origin(patient_path):
     fluence_files += glob(os.path.join(patient_path, "Niftiis", "PDOS_*"))
     for fluence_file in fluence_files:
         fluence_handle = sitk.ReadImage(fluence_file)
-        origin = fluence_handle.GetOrigin()
         spacing = fluence_handle.GetSpacing()
         size = fluence_handle.GetSize()
-        new_origin = [origin[i] - spacing[i] * size[i] / 2 for i in range(2)]
-        new_origin.append(0)
-        fluence_handle.SetOrigin(new_origin)
+        origin = [0, 0, -1540]
+        origin[0] = - spacing[0] * size[0]/2
+        origin[1] = - spacing[1] * size[1]/2
+        fluence_handle.SetOrigin(origin)
         sitk.WriteImage(fluence_handle, fluence_file)
     return None
 
@@ -510,8 +515,8 @@ def main():
                 create_padded_cbcts(patient_path=patient_path)
             if True:
                 #create_transmission(patient_path=patient_path, rewrite=rewrite)
-                createDRRs(patient_path=patient_path, rewrite=rewrite)
-                #shift_panel_origin(patient_path=patient_path)
+                #createDRRs(patient_path=patient_path, rewrite=rewrite)
+                shift_panel_origin(patient_path=patient_path)
             pbar.update()
             break
     if False:
