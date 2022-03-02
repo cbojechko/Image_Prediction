@@ -518,33 +518,21 @@ def create_transmission(patient_path, rewrite):
     return None
 
 
-def main():
-    path = r'R:\Bojechko'
-    rewrite = False
-    for patient_data in ['PatientData2']:
-        base_patient_path = os.path.join(path, patient_data)
-        MRN_list = os.listdir(base_patient_path)
-        # if os.path.exists(os.path.join('.', 'MRN')):
-        #     fid = open(os.path.join('.', 'MRN'))
-        #     MRN_list = [fid.readline()]
-        #     fid.close()
-        pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
-        for patient_MRN in MRN_list:
-            print(patient_MRN)
-            patient_path = os.path.join(base_patient_path, patient_MRN)
-            if False:
-                create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-                create_padded_cbcts(patient_path=patient_path)
-            if True:
-                #create_transmission(patient_path=patient_path, rewrite=rewrite)
-                #createDRRs(patient_path=patient_path, rewrite=rewrite)
-                createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
-                #shift_panel_origin(patient_path=patient_path)
-            pbar.update()
-    if False:
-        expandDRR(patient_path='.')
+def create_inputs(patient_path, rewrite=False):
+    """
+    First, for preprocessing, create the padded CBCTs by registering them with the primary CT and padding
+    Second, create the fluence and PDOS images from DICOM handles
+    Third, create the DRR and half-CBCT DRR for each beam angle
+    Fourth, align the PDOS and fluence with the DRRs
+    """
+    create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
+    create_padded_cbcts(patient_path=patient_path)
+    create_transmission(patient_path=patient_path, rewrite=rewrite)
+    createDRRs(patient_path=patient_path, rewrite=rewrite)
+    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    shift_panel_origin(patient_path=patient_path)
     return None
 
 
 if __name__ == '__main__':
-    main()
+    pass

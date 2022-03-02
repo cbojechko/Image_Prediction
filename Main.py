@@ -7,9 +7,25 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-
+from PreProcessingTools.Main import create_inputs, tqdm
+"""
+First, for preprocessing, create the padded CBCTs by registering them with the primary CT and padding
+Second, create the fluence and PDOS images from DICOM handles
+Third, create the DRR and half-CBCT DRR for each beam angle
+Fourth, align the PDOS and fluence with the DRRs
+"""
 basepath = os.path.join('.', 'Data', 'Patient')
-
+path = r'R:\Bojechko'
+rewrite = False
+for patient_data in ['PatientData2']:
+    base_patient_path = os.path.join(path, patient_data)
+    MRN_list = os.listdir(base_patient_path)
+    pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
+    for patient_MRN in MRN_list:
+        print(patient_MRN)
+        patient_path = os.path.join(base_patient_path, patient_MRN)
+        create_inputs(patient_path, rewrite)
+        pbar.update()
 """
 First, create the PDOS and reduced resolution EPID images
 """
