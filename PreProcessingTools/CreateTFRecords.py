@@ -33,8 +33,8 @@ def return_dictionary_list(base_path):
                     full_drr_file = os.path.join(path, "DRR_{}".format(addition))
                     if os.path.exists(full_drr_file) and os.path.exists(half_proj_file):
                         patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
-                                        'half_drr_path': half_proj_file, 'full_drr_file': full_drr_file}
-                    output_list.append(patient_dict)
+                                        'half_drr_path': half_proj_file, 'full_drr_path': full_drr_file}
+                        output_list.append(patient_dict)
             return output_list
     return output_list
 
@@ -43,10 +43,12 @@ def make_train_records(base_path):
     train_list = return_dictionary_list(base_path)
     record_writer = RecordWriter.RecordWriter(out_path=os.path.join(base_path, 'TFRecords', 'Train'),
                                               file_name_key='out_file_name', rewrite=True)
+    keys = ('pdos_handle', 'fluence_handle', 'half_drr_handle', 'drr_handle')
     train_processors = [
-        Processors.LoadNifti(nifti_path_keys=('data_path',), out_keys=('data_handle',)),
-        Processors.ResampleSITKHandles(desired_output_spacing=(1.0, 1.0, 1.0), resample_keys=('data_handle',),
-                                       resample_interpolators=('Linear',)), # They are already 1x1x1, but keep this for now
+        Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'half_drr_path', 'full_drr_path'),
+                             out_keys=keys),
+        Processors.ResampleSITKHandles(desired_output_spacing=(1.0, 1.0, 1.0), resample_keys=keys,
+                                       resample_interpolators=('Linear',)),
         Processors.SimpleITKImageToArray(nifti_keys=('data_handle',),
                                          out_keys=('data_array',)),
         Processors.SplitArray(array_keys=('data_array','data_array', 'data_array'),
