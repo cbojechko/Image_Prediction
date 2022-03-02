@@ -31,6 +31,6 @@ if create_patient_inputs:
 Lets create some .tfrecords from data already made
 """
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-if False:
+if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path)

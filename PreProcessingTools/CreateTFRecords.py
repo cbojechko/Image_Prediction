@@ -1,21 +1,45 @@
 import os
 import PreProcessingTools.Image_Processors_Module.src.Processors.MakeTFRecordProcessors as Processors
 import PreProcessingTools.Image_Processors_Module.src.Processors.TFRecordWriter as RecordWriter
+from glob import glob
 
 
-def return_dictionary_list(path):
-    files = [i for i in os.listdir(path) if i.endswith('.nii.gz')]
+def return_dictionary_list(base_path):
+    """
+    :param path:
+    :return:
+    """
+    """
+    We'll start by finding all of the PDOS files, this ensures that we have a PDOS
+    """
     output_list = []
-    for file in files:
-        breakdown = file.split('.nii')[0]
-        patient_dict = {'data_path': os.path.join(path, file),
-                        'out_file_name': '{}.tfrecord'.format(breakdown)}
-        output_list.append(patient_dict)
+    for patient_data in ['PatientData2']:
+        base_patient_path = os.path.join(base_path, patient_data)
+        MRN_list = os.listdir(base_patient_path)
+        for patient_MRN in MRN_list:
+            print(patient_MRN)
+            path = os.path.join(base_patient_path, patient_MRN, 'Niftiis')
+            pdos_files = glob(os.path.join(path, 'PDOS_G*'))
+            for pdos_file in pdos_files:
+                angle = pdos_file.split('PDOS_')[1].split('_')[0]
+                """
+                Next, find the fluence files with the same angle used
+                """
+                fluence_files = glob(os.path.join(path, "Fluence_{}_*".format(angle)))
+                for fluence_file in fluence_files:
+                    date = fluence_file.split('_')[-1].split('.')[0]
+                    addition = "{}_{}.mha".format(angle, date)
+                    half_proj_file = os.path.join(path, "HalfProj_{}".format(addition))
+                    full_drr_file = os.path.join(path, "DRR_{}".format(addition))
+                    patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
+                                    'half_drr_path': half_proj_file, 'full_drr_file': full_drr_file}
+                    output_list.append(patient_dict)
+            return output_list
     return output_list
 
 
 def make_train_records(base_path):
-    train_path = os.path.join(base_path, 'nifti')
+    train_list = return_dictionary_list(base_path)
     record_writer = RecordWriter.RecordWriter(out_path=os.path.join(base_path, 'TFRecords', 'Train'),
                                               file_name_key='out_file_name', rewrite=True)
     train_processors = [
@@ -34,9 +58,9 @@ def make_train_records(base_path):
         # Processors.AddByValues(image_keys=('image_array',), values=(3,)),
         # Processors.DivideByValues(image_keys=('image_array',), values=(6,)),
     ]
-    train_list = return_dictionary_list(train_path)
-    RecordWriter.parallel_record_writer(dictionary_list=train_list, thread_count=8, recordwriter=record_writer,
-                                        image_processors=train_processors, debug=False)
+
+    RecordWriter.parallel_record_writer(dictionary_list=train_list, thread_count=1, recordwriter=record_writer,
+                                        image_processors=train_processors, debug=True)
     return None
 
 
