@@ -44,6 +44,7 @@ def make_train_records(base_path):
     record_writer = RecordWriter.RecordWriter(out_path=os.path.join(base_path, 'TFRecords', 'Train'),
                                               file_name_key='out_file_name', rewrite=True)
     keys = ('pdos_handle', 'fluence_handle', 'half_drr_handle', 'drr_handle')
+    array_keys = tuple(i.replace('_handle', '_array') for i in keys)
     """
     Load all of the files into SITK handles
     Then resample the PDOS to be 1x1x1mm
@@ -57,10 +58,11 @@ def make_train_records(base_path):
         Processors.ResampleSITKHandlesToAnotherHandle(resample_keys=keys,
                                                       reference_handle_keys=['pdos_handle' for _ in range(len(keys))],
                                                       resample_interpolators=['Linear' for _ in range(len(keys))]),
-        Processors.SimpleITKImageToArray(nifti_keys=('data_handle',),
-                                         out_keys=('data_array',)),
-        Processors.DeleteKeys(keys_to_delete=('data_handle',)),
-        Processors.ExpandDimensions(image_keys=('image', 'epid', 'transmission'), axis=-1),
+        Processors.SimpleITKImageToArray(nifti_keys=keys, out_keys=array_keys,
+                                         dtypes=['float32' for _ in range(len(keys))]),
+        Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=32, power_val_y=32,
+                             image_keys=array_keys),
+        Processors.DeleteKeys(keys_to_delete=keys),
         Processors.AddByValues(image_keys=('image',), values=(0,)),
         Processors.DivideByValues(image_keys=('image',), values=(1,)),
         # Processors.Threshold_Images(image_keys=('image_array',), lower_bound=-3, upper_bound=3),
