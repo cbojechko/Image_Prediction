@@ -33,9 +33,9 @@ def return_dictionary_list(base_path):
                     full_drr_file = os.path.join(path, "DRR_{}".format(addition))
                     if os.path.exists(full_drr_file) and os.path.exists(half_proj_file):
                         patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
-                                        'half_drr_path': half_proj_file, 'full_drr_path': full_drr_file}
+                                        'half_drr_path': half_proj_file, 'full_drr_path': full_drr_file,
+                                        'out_file_name': "G{}_{}.tfrecord".format(angle, date)}
                         output_list.append(patient_dict)
-            return output_list
     return output_list
 
 
@@ -60,11 +60,11 @@ def make_train_records(base_path):
                                                       resample_interpolators=['Linear' for _ in range(len(keys))]),
         Processors.SimpleITKImageToArray(nifti_keys=keys, out_keys=array_keys,
                                          dtypes=['float32' for _ in range(len(keys))]),
-        Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=32, power_val_y=32,
+        Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=2**5, power_val_y=2**5,
                              image_keys=array_keys),
         Processors.DeleteKeys(keys_to_delete=keys),
-        Processors.AddByValues(image_keys=('image',), values=(0,)),
-        Processors.DivideByValues(image_keys=('image',), values=(1,)),
+        # Processors.AddByValues(image_keys=('image',), values=(0,)),
+        # Processors.DivideByValues(image_keys=('image',), values=(1,)),
         # Processors.Threshold_Images(image_keys=('image_array',), lower_bound=-3, upper_bound=3),
         # Processors.AddByValues(image_keys=('image_array',), values=(3,)),
         # Processors.DivideByValues(image_keys=('image_array',), values=(6,)),
