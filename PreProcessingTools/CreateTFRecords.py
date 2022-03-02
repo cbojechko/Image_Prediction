@@ -31,8 +31,9 @@ def return_dictionary_list(base_path):
                     addition = "{}_{}.mha".format(angle, date)
                     half_proj_file = os.path.join(path, "HalfProj_{}".format(addition))
                     full_drr_file = os.path.join(path, "DRR_{}".format(addition))
-                    patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
-                                    'half_drr_path': half_proj_file, 'full_drr_file': full_drr_file}
+                    if os.path.exists(full_drr_file) and os.path.exists(half_proj_file):
+                        patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
+                                        'half_drr_path': half_proj_file, 'full_drr_file': full_drr_file}
                     output_list.append(patient_dict)
             return output_list
     return output_list
