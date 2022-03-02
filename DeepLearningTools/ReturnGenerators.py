@@ -9,12 +9,14 @@ import tensorflow as tf
 def get_mean_std(train_generator):
     iter_generator = iter(train_generator.data_set)
     values = None
+    out_path = os.path.join('.', "Data.xlsx")
     print(len(train_generator))
     for i in range(len(train_generator)):
         print(i)
         x, y = next(iter_generator)
         print(tf.reduce_max(x[0][..., 0]))
         print(tf.reduce_max(x[0][..., 1]))
+        print(tf.reduce_max(x[0][..., 2]))
         print(tf.reduce_max(y[0][..., 0]))
         #temp_values = x[0][y[0] == 1]
         #if values is None:
@@ -28,12 +30,14 @@ def return_train_generator(records_path):
     train_path = os.path.join(records_path, 'Train')
     train_generator = DataGeneratorClass(record_paths=[train_path])
     processors = [
-        Processors.CombineKeys(image_keys=('image', 'epid'), axis=-1, output_key='combined'),
-        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('transmission',)),
+        Processors.Squeeze(image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'), output_key='combined'),
+        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',)),
         {'shuffle': len(train_generator)//3},
-        {'batch': 4}, {'repeat'}
+        {'batch': 1}, {'repeat'}
     ]
-    train_generator.compile_data_set(image_processors=processors, debug=False)
+    train_generator.compile_data_set(image_processors=processors, debug=True)
     return train_generator
 
 

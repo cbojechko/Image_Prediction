@@ -9,6 +9,7 @@ MRN.txt
 *.mha
 *.nii.gz
 *.xml
+*.xlsx
 # Distribution / packaging
 .Python
 .idea/
