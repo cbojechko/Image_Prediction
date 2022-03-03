@@ -6,7 +6,7 @@ from glob import glob
 import pandas as pd
 
 
-def return_dictionary_list(base_path):
+def return_dictionary_list(base_path, out_path, rewrite):
     """
     :param path:
     :return:
@@ -15,13 +15,13 @@ def return_dictionary_list(base_path):
     We'll start by finding all of the PDOS files, this ensures that we have a PDOS
     """
     output_list = []
-    out_path = os.path.join('.', "Patient_Keys.xlsx")
-    if not os.path.exists(out_path):
+    excel_path = os.path.join('.', "Patient_Keys.xlsx")
+    if not os.path.exists(excel_path):
         data_dictionary = {'Patient #': [], 'Index': []}
         df = pd.DataFrame(data_dictionary)
-        df.to_excel(out_path, index=0)
+        df.to_excel(excel_path, index=0)
     else:
-        df = pd.read_excel(out_path, engine='openpyxl')
+        df = pd.read_excel(excel_path, engine='openpyxl')
     rewrite_excel = False
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(base_path, patient_data)
@@ -47,23 +47,33 @@ def return_dictionary_list(base_path):
                 fluence_files = glob(os.path.join(path, "Fluence_{}_*".format(angle)))
                 for fluence_file in fluence_files:
                     date = fluence_file.split('_')[-1].split('.')[0]
-                    addition = "{}_{}.mha".format(angle, date)
-                    half_proj_file = os.path.join(path, "HalfProj_{}".format(addition))
-                    full_drr_file = os.path.join(path, "DRR_{}".format(addition))
+                    addition = "{}_{}".format(angle, date)
+                    half_proj_file = os.path.join(path, "HalfProj_{}.mha".format(addition))
+                    full_drr_file = os.path.join(path, "DRR_{}.mha".format(addition))
+                    examples_exist = [os.path.exists(os.path.join(out_path, "{}_{}_{}_{}.tfrecord".format(i,
+                                                                                                          angle, date,
+                                                                                                          _)))
+                                      for _ in range(5)]
+                    if max(examples_exist) and not rewrite:  # If we have the record, move on
+                        continue
                     if os.path.exists(full_drr_file) and os.path.exists(half_proj_file):
                         patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
                                         'half_drr_path': half_proj_file, 'full_drr_path': full_drr_file,
-                                        'out_file_name': "{}_G{}_{}.tfrecord".format(i, angle, date)}
+                                        'out_file_name': "{}_{}_{}.tfrecord".format(i, angle, date)}
                         output_list.append(patient_dict)
     if rewrite_excel:
-        df.to_excel(out_path, index=0)
+        df.to_excel(excel_path, index=0)
     return output_list
 
 
-def make_train_records(base_path):
-    train_list = return_dictionary_list(base_path)
-    record_writer = RecordWriter.RecordWriter(out_path=os.path.join(base_path, 'TFRecords', 'Train'),
-                                              file_name_key='out_file_name', rewrite=True)
+def make_train_records(base_path, rewrite=False):
+    out_path = os.path.join(base_path, 'TFRecords', 'Train')
+    train_list = return_dictionary_list(base_path, out_path, rewrite)
+    if not train_list:
+        print("No new files found for record making")
+        return None
+    record_writer = RecordWriter.RecordWriter(out_path=out_path,
+                                              file_name_key='out_file_name', rewrite=rewrite)
     keys = ('pdos_handle', 'fluence_handle', 'half_drr_handle', 'drr_handle')
     array_keys = tuple(i.replace('_handle', '_array') for i in keys)
     """
@@ -101,8 +111,8 @@ def make_train_records(base_path):
     return None
 
 
-def create_tf_records(base_path):
-    make_train_records(base_path)
+def create_tf_records(base_path, rewrite=False):
+    make_train_records(base_path, rewrite)
     return None
 
 
