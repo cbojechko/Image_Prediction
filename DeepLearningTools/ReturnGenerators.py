@@ -8,8 +8,6 @@ import tensorflow as tf
 
 def get_mean_std(train_generator):
     iter_generator = iter(train_generator.data_set)
-    values = None
-    out_path = os.path.join('.', "Data.xlsx")
     print(len(train_generator))
     for i in range(len(train_generator)):
         print(i)
@@ -29,10 +27,15 @@ def get_mean_std(train_generator):
 def return_train_generator(records_path):
     train_path = os.path.join(records_path, 'Train')
     train_generator = DataGeneratorClass(record_paths=[train_path])
+    all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
     processors = [
-        Processors.Squeeze(image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        Processors.Squeeze(image_keys=all_keys),
         Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
-        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'), output_key='combined'),
+        Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
+                                        image_cols=[256 for _ in range(len(all_keys))],
+                                        is_mask=[False for _ in range(len(all_keys))]),
+        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
+                               output_key='combined'),
         Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',)),
         {'shuffle': len(train_generator)//3},
         {'batch': 1}, {'repeat'}

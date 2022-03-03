@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import PreProcessingTools.Image_Processors_Module.src.Processors.MakeTFRecordProcessors as Processors
 import PreProcessingTools.Image_Processors_Module.src.Processors.TFRecordWriter as RecordWriter
 from glob import glob
@@ -51,7 +52,7 @@ def return_dictionary_list(base_path):
 def make_train_records(base_path):
     train_list = return_dictionary_list(base_path)
     record_writer = RecordWriter.RecordWriter(out_path=os.path.join(base_path, 'TFRecords', 'Train'),
-                                              file_name_key='out_file_name', rewrite=False)
+                                              file_name_key='out_file_name', rewrite=True)
     keys = ('pdos_handle', 'fluence_handle', 'half_drr_handle', 'drr_handle')
     array_keys = tuple(i.replace('_handle', '_array') for i in keys)
     """
@@ -73,7 +74,12 @@ def make_train_records(base_path):
                              image_keys=array_keys),
         Processors.DeleteKeys(keys_to_delete=keys),
         # Processors.AddByValues(image_keys=('image',), values=(0,)),
-        # Processors.DivideByValues(image_keys=('image',), values=(1,)),
+        Processors.ChangeArrayByArgInArray(reference_keys=('pdos_array', 'pdos_array'),  # Scale fluence based on pdos
+                                           value_args=(np.max, np.max), target_keys=('fluence_array', 'pdos_array'),
+                                           change_args=(np.divide, np.divide)),
+        Processors.MultiplyByValues(image_keys=('drr_array', 'half_drr_array', 'pdos_array', 'fluence_array'),
+                                    values=(255/300, 255/300, 255, 255)),  # 0-255
+
         # Processors.Threshold_Images(image_keys=('image_array',), lower_bound=-3, upper_bound=3),
         # Processors.AddByValues(image_keys=('image_array',), values=(3,)),
         # Processors.DivideByValues(image_keys=('image_array',), values=(6,)),
