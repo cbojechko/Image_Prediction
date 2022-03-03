@@ -4,6 +4,7 @@ from DeepLearningTools.Data_Generators.TFRecord_to_Dataset_Generator import Data
 import DeepLearningTools.Data_Generators.Image_Processors_Module.src.Processors.TFDataSetProcessors as Processors
 from PlotScrollNumpyArrays.Plot_Scroll_Images import plot_scroll_Image
 import tensorflow as tf
+from PIL import Image
 
 
 def get_mean_std(train_generator):
@@ -25,7 +26,8 @@ def get_mean_std(train_generator):
 
 
 def create_files_for_streamline(records_path):
-    out_path = os.path.join(records_path, 'NumpyFiles')
+    out_path_numpy = os.path.join(records_path, 'NumpyFiles')
+    out_path_jpeg = os.path.join(records_path, 'Jpegs')
     train_path = os.path.join(records_path, 'Train')
     train_generator = DataGeneratorClass(record_paths=[train_path])
     all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
@@ -46,7 +48,12 @@ def create_files_for_streamline(records_path):
         x, y = next(iterator)
         numpy_array = x[0].numpy()
         file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
-        np.save(os.path.join(out_path, "{}.npy".format(file_info)), numpy_array)
+        np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
+        out_array = np.zeros((256, 256 * 4))
+        for i in range(4):
+            out_array[..., 256 * i:256 * (i + 1)] = numpy_array[..., i]
+        image = Image.fromarray(out_array.astype('uint64'))
+        image.save(os.path.join(out_path_jpeg, "{}.jpeg".format(file_info)))
     return None
 
 
