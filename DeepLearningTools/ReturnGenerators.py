@@ -1,7 +1,7 @@
 import numpy as np
 import os
-from DeepLearningTools.Data_Generators.TFRecord_to_Dataset_Generator import DataGeneratorClass
-import DeepLearningTools.Data_Generators.Image_Processors_Module.src.Processors.TFDataSetProcessors as Processors
+from Data_Generators.TFRecord_to_Dataset_Generator import DataGeneratorClass
+from Data_Generators.Image_Processors_Module.src.Processors import TFDataSetProcessors as Processors
 from PlotScrollNumpyArrays.Plot_Scroll_Images import plot_scroll_Image
 import tensorflow as tf
 from PIL import Image
@@ -109,5 +109,5 @@ def main():
 
 
 if __name__ == '__main__':
-    train_generator = main()
+    # train_generator = main()
     pass
