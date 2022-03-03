@@ -57,11 +57,20 @@ def create_files_for_streamline(records_path):
     return None
 
 
-def return_train_generator(records_path):
+def build_cache(generator):
+    iterator = iter(generator.data_set)
+    for i in range(len(generator)*2):
+        x, y = next(iterator)
+    return None
+
+
+def return_generators(records_path):
     train_path = os.path.join(records_path, 'Train')
+    validation_path = os.path.join(records_path, 'Validation')
     train_generator = DataGeneratorClass(record_paths=[train_path])
+    validation_generator = DataGeneratorClass(record_paths=[validation_path])
     all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
-    processors = [
+    base_processors = [
         Processors.Squeeze(image_keys=all_keys),
         Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
         Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
@@ -69,41 +78,36 @@ def return_train_generator(records_path):
                                         is_mask=[False for _ in range(len(all_keys))]),
         Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
                                output_key='combined'),
-        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',)),
-        {'shuffle': len(train_generator)//3},
+        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',))
+        ]
+    train_processors = [
+        {'cache': train_path},
+        {'shuffle': len(train_generator) // 3},
         {'batch': 1}, {'repeat'}
     ]
-    train_generator.compile_data_set(image_processors=processors, debug=False)
-    return train_generator
-
-
-def return_validation_generator(records_path):
-    validation_path = os.path.join(records_path, 'Validation')
-    validation_generator = DataGeneratorClass(record_paths=[validation_path])
-    processors = [
-        Processors.ExpandDimension(axis=-1, image_keys=('image_array', 'annotation_array')),
-        # Processors.RandomCrop(keys_to_crop=('image_array', 'annotation_array'), crop_dimensions=((32, 32, 32, 1),
-        #                                                                                          (32, 32, 32, 1))),
-        Processors.ReturnOutputs(input_keys=('image_array',), output_keys=('annotation_array',)),
+    validation_processors = [
+        {'cache': validation_path},
         {'batch': 1}, {'repeat'}
     ]
-    validation_generator.compile_data_set(image_processors=processors, debug=True)
-    return validation_generator
+    train_generator.compile_data_set(image_processors=base_processors + train_processors, debug=False)
+    validation_generator.compile_data_set(image_processors=base_processors + validation_processors, debug=False)
+    if not os.path.exists(os.path.join(train_path, 'cache.tfrecord.index')):
+        build_cache(train_generator)
+    if not os.path.exists(os.path.join(validation_path, 'cache.tfrecord.index')):
+        build_cache(validation_generator)
+    return train_generator, validation_generator
 
 
-def return_generators():
+def main():
     records_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords'
     if not os.path.exists(records_path):
         records_path = os.path.abspath(os.path.join('..', 'Data'))
     print(records_path)
-    create_files_for_streamline(records_path)
-    train_generator = return_train_generator(records_path=records_path)
-    # validation_generator = return_validation_generator(records_path=records_path)
-    xxx = 1
+    #create_files_for_streamline(records_path)
+    train_generator, validation_generator = return_generators(records_path=records_path)
     return train_generator
 
 
 if __name__ == '__main__':
-    train_generator = return_generators()
-    #get_mean_std(train_generator)
+    train_generator = main()
     pass
