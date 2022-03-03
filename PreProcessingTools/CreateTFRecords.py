@@ -3,7 +3,7 @@ import numpy as np
 import PreProcessingTools.Image_Processors_Module.src.Processors.MakeTFRecordProcessors as Processors
 import PreProcessingTools.Image_Processors_Module.src.Processors.TFRecordWriter as RecordWriter
 from glob import glob
-import pandas
+import pandas as pd
 
 
 def return_dictionary_list(base_path):
@@ -15,17 +15,28 @@ def return_dictionary_list(base_path):
     We'll start by finding all of the PDOS files, this ensures that we have a PDOS
     """
     output_list = []
-    i = -1
     out_path = os.path.join('.', "Patient_Keys.xlsx")
-    data_dictionary = {'Patient #': [], 'Index': []}
+    if not os.path.exists(out_path):
+        data_dictionary = {'Patient #': [], 'Index': []}
+        df = pd.DataFrame(data_dictionary)
+        df.to_excel(out_path, index=0)
+    else:
+        df = pd.read_excel(out_path, engine='openpyxl')
+    rewrite_excel = False
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(base_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         for patient_MRN in MRN_list:
+            previous_run = df.loc[df['Patient #'] == patient_MRN]
+            if previous_run.shape[0] == 0:
+                rewrite_excel = True
+                i = 0
+                while i in df['Index'].values:
+                    i += 1
+                df = df.append(pd.DataFrame({'Patient #': [patient_MRN], 'Index': [i]}))
+            else:
+                i = int(previous_run['Index'].values[0])
             print(patient_MRN)
-            i += 1
-            data_dictionary['Patient #'].append(patient_MRN)
-            data_dictionary['Index'].append(i)
             path = os.path.join(base_patient_path, patient_MRN, 'Niftiis')
             pdos_files = glob(os.path.join(path, 'PDOS_G*'))
             for pdos_file in pdos_files:
@@ -44,8 +55,8 @@ def return_dictionary_list(base_path):
                                         'half_drr_path': half_proj_file, 'full_drr_path': full_drr_file,
                                         'out_file_name': "{}_G{}_{}.tfrecord".format(i, angle, date)}
                         output_list.append(patient_dict)
-    df = pandas.DataFrame(data_dictionary)
-    df.to_excel(out_path, index=0)
+    if rewrite_excel:
+        df.to_excel(out_path, index=0)
     return output_list
 
 
@@ -85,8 +96,8 @@ def make_train_records(base_path):
         # Processors.DivideByValues(image_keys=('image_array',), values=(6,)),
     ]
 
-    RecordWriter.parallel_record_writer(dictionary_list=train_list, thread_count=8, recordwriter=record_writer,
-                                        image_processors=train_processors, debug=False)
+    RecordWriter.parallel_record_writer(dictionary_list=train_list, thread_count=1, recordwriter=record_writer,
+                                        image_processors=train_processors, debug=True)
     return None
 
 
