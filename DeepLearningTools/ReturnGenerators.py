@@ -24,6 +24,32 @@ def get_mean_std(train_generator):
     return None
 
 
+def create_files_for_streamline(records_path):
+    out_path = os.path.join(records_path, 'NumpyFiles')
+    train_path = os.path.join(records_path, 'Train')
+    train_generator = DataGeneratorClass(record_paths=[train_path])
+    all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
+    processors = [
+        Processors.Squeeze(image_keys=all_keys),
+        Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
+                                        image_cols=[256 for _ in range(len(all_keys))],
+                                        is_mask=[False for _ in range(len(all_keys))]),
+        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
+                               output_key='combined'),
+        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
+        {'batch': 1}, {'repeat'}
+    ]
+    train_generator.compile_data_set(image_processors=processors, debug=False)
+    iterator = iter(train_generator.data_set)
+    for i in range(len(train_generator)):
+        x, y = next(iterator)
+        numpy_array = x[0].numpy()
+        file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
+        np.save(os.path.join(out_path, "{}.npy".format(file_info)), numpy_array)
+    return None
+
+
 def return_train_generator(records_path):
     train_path = os.path.join(records_path, 'Train')
     train_generator = DataGeneratorClass(record_paths=[train_path])
@@ -40,7 +66,7 @@ def return_train_generator(records_path):
         {'shuffle': len(train_generator)//3},
         {'batch': 1}, {'repeat'}
     ]
-    train_generator.compile_data_set(image_processors=processors, debug=True)
+    train_generator.compile_data_set(image_processors=processors, debug=False)
     return train_generator
 
 
@@ -63,6 +89,7 @@ def return_generators():
     if not os.path.exists(records_path):
         records_path = os.path.abspath(os.path.join('..', 'Data'))
     print(records_path)
+    create_files_for_streamline(records_path)
     train_generator = return_train_generator(records_path=records_path)
     # validation_generator = return_validation_generator(records_path=records_path)
     xxx = 1
@@ -71,5 +98,5 @@ def return_generators():
 
 if __name__ == '__main__':
     train_generator = return_generators()
-    get_mean_std(train_generator)
+    #get_mean_std(train_generator)
     pass
