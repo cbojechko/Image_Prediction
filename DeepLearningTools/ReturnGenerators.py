@@ -28,32 +28,33 @@ def get_mean_std(train_generator):
 def create_files_for_streamline(records_path):
     out_path_numpy = os.path.join(records_path, 'NumpyFiles')
     out_path_jpeg = os.path.join(records_path, 'Jpegs')
-    train_path = os.path.join(records_path, 'Train')
-    train_generator = DataGeneratorClass(record_paths=[train_path])
-    all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
-    processors = [
-        Processors.Squeeze(image_keys=all_keys),
-        Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
-        Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
-                                        image_cols=[256 for _ in range(len(all_keys))],
-                                        is_mask=[False for _ in range(len(all_keys))]),
-        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
-                               output_key='combined'),
-        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
-        {'batch': 1}, {'repeat'}
-    ]
-    train_generator.compile_data_set(image_processors=processors, debug=False)
-    iterator = iter(train_generator.data_set)
-    for i in range(len(train_generator)):
-        x, y = next(iterator)
-        numpy_array = x[0].numpy()
-        file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
-        np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
-        out_array = np.zeros((256, 256 * 4))
-        for i in range(4):
-            out_array[..., 256 * i:256 * (i + 1)] = numpy_array[..., i]
-        image = Image.fromarray(out_array.astype('uint64'))
-        image.save(os.path.join(out_path_jpeg, "{}.jpeg".format(file_info)))
+    for fold in range(1,6):
+        train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
+        train_generator = DataGeneratorClass(record_paths=[train_path])
+        all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
+        processors = [
+            Processors.Squeeze(image_keys=all_keys),
+            Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+            Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
+                                            image_cols=[256 for _ in range(len(all_keys))],
+                                            is_mask=[False for _ in range(len(all_keys))]),
+            Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
+                                   output_key='combined'),
+            Processors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
+            {'batch': 1}, {'repeat'}
+        ]
+        train_generator.compile_data_set(image_processors=processors, debug=False)
+        iterator = iter(train_generator.data_set)
+        for i in range(len(train_generator)):
+            x, y = next(iterator)
+            numpy_array = x[0].numpy()
+            file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
+            np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
+            out_array = np.zeros((256, 256 * 4))
+            for i in range(4):
+                out_array[..., 256 * i:256 * (i + 1)] = numpy_array[..., i]
+            image = Image.fromarray(out_array.astype('uint8'))
+            image.save(os.path.join(out_path_jpeg, "{}.jpeg".format(file_info)))
     return None
 
 
