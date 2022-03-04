@@ -503,6 +503,7 @@ def create_transmission(patient_path, rewrite):
             continue
         if fluence_reader.return_has_key("3002|0029"):
             fraction_number = int(fluence_reader.return_key_info("3002|0029"))
+            description = "Fluence"
             if fraction_number == 0:
                 description = "PDOS"
         elif image_type.find("CALCULATED_DOSE") != -1:
