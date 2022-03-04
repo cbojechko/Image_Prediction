@@ -7,7 +7,7 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-create_patient_inputs = True
+create_patient_inputs = False
 if create_patient_inputs:
     from PreProcessingTools.Main import create_inputs, tqdm
     """
