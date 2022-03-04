@@ -6,7 +6,12 @@ Data/
 MRN.txt
 # C extensions
 *.so
-
+*.mha
+*.nii.gz
+*.xml
+*.xlsx
+PreProcessingTools/Data.xlsx
+PreProcessingTools/Patient_Keys.xlsx
 # Distribution / packaging
 .Python
 .idea/
@@ -114,3 +119,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/PreProcessingTools/MRN
+!/PreProcessingTools/Data.xlsx
+!/PreProcessingTools/Data.xlsx

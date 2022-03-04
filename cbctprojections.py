@@ -104,7 +104,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
     #Search for a numpy file 
 
     for j in range(0,len(dates)):
-        cbctfile = str(CBCTpath) + '\cbct' + str(int(dates[j])) +'.npz'
+        cbctfile = str(CBCTpath) + '\cbct_' + str(int(dates[j])) +'.npz'
         if(os.path.exists(cbctfile)):
             print("Load File")
         else:
@@ -124,7 +124,7 @@ def MakeCBCTProjection(RIpath,CBCTpath):
         print("Make projection for Fraction " + str(int(fxs[j])) + " On " + str(int(dates[j])) )
         for gantryang in gangs:
             print("Gantry angle for projection " + str(int(gantryang)))
-            rotsource = rays.source_rotate(gantryang,origin)
+            rotsource = rays.source_rotate(gantryang, origin)
             raytracer = rays.RayTracer(image_array=image, CTinfo=CTinfo,
                                        sourceCT=rotsource, voxelDimension=voxDim,
                                        voxelSize=voxSize, headfirst=True)
