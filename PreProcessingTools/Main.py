@@ -496,9 +496,12 @@ def create_transmission(patient_path, rewrite):
         if gantry == 360:
             gantry = 0
         referenced_beam_number = int(fluence_reader.return_key_info("300c|0006"))
+        fraction_number = int(fluence_reader.return_key_info("3002|0029"))
         if referenced_beam_number not in plan_dictionary:
             continue
-        if image_type.find("CALCULATED_DOSE") != -1:
+        if (fraction_number == 0):
+            description = "PDOS"
+        elif image_type.find("CALCULATED_DOSE") != -1:
             description = "PDOS"
         elif image_type.find("ACQUIRED_DOSE") != -1:
             description = "Fluence"
