@@ -459,6 +459,9 @@ class FluenceReader(object):
     def return_key_info(self, key):
         return self.reader.GetMetaData(0, key)
 
+    def return_has_key(self, key):
+        return self.reader.HasMetaDataKey(0, key)
+
 
 def return_plan_dictionary(patient_path):
     ds_plan = pydicom.read_file(glob(os.path.join(patient_path, "RTPLAN", "*.dcm"))[0])
@@ -496,11 +499,12 @@ def create_transmission(patient_path, rewrite):
         if gantry == 360:
             gantry = 0
         referenced_beam_number = int(fluence_reader.return_key_info("300c|0006"))
-        fraction_number = int(fluence_reader.return_key_info("3002|0029"))
         if referenced_beam_number not in plan_dictionary:
             continue
-        if (fraction_number == 0):
-            description = "PDOS"
+        if fluence_reader.return_has_key("3002|0029"):
+            fraction_number = int(fluence_reader.return_key_info("3002|0029"))
+            if fraction_number == 0:
+                description = "PDOS"
         elif image_type.find("CALCULATED_DOSE") != -1:
             description = "PDOS"
         elif image_type.find("ACQUIRED_DOSE") != -1:
