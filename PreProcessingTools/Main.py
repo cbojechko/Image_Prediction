@@ -9,6 +9,10 @@ import itk
 import numpy as np
 from DicomRTTool.ReaderWriter import DicomReaderWriter, plot_scroll_Image, pydicom
 
+logs_file = os.path.join('.', 'errors_log.txt')
+if not os.path.exists(logs_file):
+    logs_fid = open(logs_file, 'w+')
+    logs_fid.close()
 
 def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 0, 0)):
     """
@@ -181,6 +185,9 @@ def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
 
 def expandDRR(patient_path):
     if not os.path.exists(os.path.join(patient_path, 'Primary_CT_DRR.mha')):
+        fid = open(logs_file, 'a')
+        fid.write("No primary CT_DRR for {}\n".format(patient_path))
+        fid.close()
         print("Could not find Primary_CT_DRR!")
         return None
     CBCT_DRR_Files = glob(os.path.join(patient_path, 'CBCT*DRR.mha'))
@@ -224,6 +231,9 @@ def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
 def create_registered_cbct(patient_path, rewrite=False):
     if not os.path.exists(os.path.join(patient_path, 'pCT')):
         print("No primary CT for {}".format(patient_path))
+        fid = open(logs_file, 'a')
+        fid.write("No primary CT for {}\n".format(patient_path))
+        fid.close()
         return None
     out_folder = os.path.join(patient_path, "Niftiis")
     status_file = os.path.join(out_folder, "Finished_Reg_CBCT.txt")
@@ -255,6 +265,9 @@ def create_registered_cbct(patient_path, rewrite=False):
     Dicom_reader.down_folder(os.path.join(patient_path, 'CT')) # Read in the CBCTs
     reg_path = os.path.join(patient_path, 'REG')
     if not os.path.exists(reg_path):
+        fid = open(logs_file, 'a')
+        fid.write("No registration folder for {}\n".format(patient_path))
+        fid.close()
         print("{} does not exist! Export it".format(reg_path))
     for file in os.listdir(reg_path):
         ds = pydicom.read_file(os.path.join(reg_path, file))
@@ -331,6 +344,9 @@ def create_padded_cbcts(patient_path):
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
     if not os.path.exists(primary_CT_path):
         print("Primary CT does not exist!")
+        fid = open(logs_file, 'a')
+        fid.write("No primary CT for {}\n".format(patient_path))
+        fid.close()
         return None
     status_file = os.path.join(patient_path, "Finished_Padded_CBCT.txt")
     if os.path.exists(status_file):
