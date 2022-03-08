@@ -521,7 +521,8 @@ def create_transmission(patient_path, rewrite):
             continue
         fluence_reader.load_file()
         if description == "PDOS":
-            fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
+            if image_type.find("CALCULATED_DOSE") != -1:
+                fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
         sitk.WriteImage(fluence_reader.dicom_handle, out_file)
     return None
 

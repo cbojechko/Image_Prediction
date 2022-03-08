@@ -7,7 +7,7 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-create_patient_inputs = False
+create_patient_inputs = True
 if create_patient_inputs:
     from PreProcessingTools.Main import create_inputs, tqdm
     """
@@ -21,6 +21,9 @@ if create_patient_inputs:
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(path, patient_data)
         MRN_list = os.listdir(base_patient_path)
+        # fid = open(os.path.join('.', 'PreProcessingTools', 'MRN'))
+        # MRN_list = [fid.readline()]
+        # fid.close()
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
         for patient_MRN in MRN_list:
             print(patient_MRN)
@@ -33,4 +36,4 @@ Lets create some .tfrecords from data already made
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
 if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
-    create_tf_records(data_path)
+    create_tf_records(data_path, rewrite=True)

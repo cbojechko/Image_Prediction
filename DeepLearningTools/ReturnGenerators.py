@@ -28,8 +28,10 @@ def get_mean_std(train_generator):
 def create_files_for_streamline(records_path):
     out_path_numpy = os.path.join(records_path, 'NumpyFiles')
     out_path_jpeg = os.path.join(records_path, 'Jpegs')
-    for fold in range(1,6):
+    for fold in range(1):
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
+        if fold == 0:
+            train_path = os.path.join(records_path, 'Train')
         train_generator = DataGeneratorClass(record_paths=[train_path])
         all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
         processors = [
@@ -50,6 +52,9 @@ def create_files_for_streamline(records_path):
             numpy_array = x[0].numpy()
             file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
             np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
+            max_val = np.max(numpy_array[...,-1])
+            if max_val < 20:
+                print("{} max is {}".format(file_info, max_val))
             out_array = np.zeros((256, 256 * 4))
             for i in range(4):
                 out_array[..., 256 * i:256 * (i + 1)] = numpy_array[..., i]
@@ -104,11 +109,11 @@ def main():
     if not os.path.exists(records_path):
         records_path = os.path.abspath(os.path.join('..', 'Data'))
     print(records_path)
-    #create_files_for_streamline(records_path)
-    train_generator, validation_generator = return_generators(records_path=records_path)
-    return train_generator
+    create_files_for_streamline(records_path)
+    # train_generator, validation_generator = return_generators(records_path=records_path)
+    # return train_generator
 
 
 if __name__ == '__main__':
-    # train_generator = main()
+    train_generator = main()
     pass

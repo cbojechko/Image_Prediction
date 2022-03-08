@@ -106,8 +106,8 @@ def make_train_records(base_path, rewrite=False):
         # Processors.DivideByValues(image_keys=('image_array',), values=(6,)),
     ]
 
-    RecordWriter.parallel_record_writer(dictionary_list=train_list, thread_count=1, recordwriter=record_writer,
-                                        image_processors=train_processors, debug=True)
+    RecordWriter.parallel_record_writer(dictionary_list=train_list, thread_count=8, recordwriter=record_writer,
+                                        image_processors=train_processors, debug=False)
     return None
 
 
