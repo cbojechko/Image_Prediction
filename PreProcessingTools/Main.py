@@ -14,6 +14,7 @@ if not os.path.exists(logs_file):
     logs_fid = open(logs_file, 'w+')
     logs_fid.close()
 
+
 def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 0, 0)):
     """
     :param itk_image:
