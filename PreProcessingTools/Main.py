@@ -254,6 +254,8 @@ def create_registered_cbct(patient_path, rewrite=False):
         CT_handle = sitk.ReadImage(os.path.join(out_folder, "Primary_CT.mha"))
     Dicom_reader.down_folder(os.path.join(patient_path, 'CT')) # Read in the CBCTs
     reg_path = os.path.join(patient_path, 'REG')
+    if not os.path.exists(reg_path):
+        print("{} does not exist! Export it".format(reg_path))
     for file in os.listdir(reg_path):
         ds = pydicom.read_file(os.path.join(reg_path, file))
         for ref in ds.ReferencedSeriesSequence:
