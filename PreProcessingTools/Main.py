@@ -246,7 +246,7 @@ def create_registered_cbct(patient_path, rewrite=False):
     CT_SIUID = None
     primary_CTSUID_path = os.path.join(out_folder, "PrimaryCTSIUD.txt")
     if not os.path.exists(primary_CTSUID_path):
-        Dicom_reader.down_folder(os.path.join(patient_path, 'pCT'))  # Read in the primary CT
+        Dicom_reader.walk_through_folders(os.path.join(patient_path, 'pCT'))  # Read in the primary CT
         for index in Dicom_reader.indexes_with_contours:
             if Dicom_reader.series_instances_dictionary[index]['Description'] is not None:
                 Dicom_reader.set_index(index)  # Primary CT
@@ -263,7 +263,7 @@ def create_registered_cbct(patient_path, rewrite=False):
         CT_SIUID = fid.readline()
         fid.close()
         CT_handle = sitk.ReadImage(os.path.join(out_folder, "Primary_CT.mha"))
-    Dicom_reader.down_folder(os.path.join(patient_path, 'CT')) # Read in the CBCTs
+    Dicom_reader.walk_through_folders(os.path.join(patient_path, 'CT')) # Read in the CBCTs
     reg_path = os.path.join(patient_path, 'REG')
     if not os.path.exists(reg_path):
         fid = open(logs_file, 'a')
@@ -280,9 +280,8 @@ def create_registered_cbct(patient_path, rewrite=False):
             for index in Dicom_reader.indexes_with_contours:
                 if Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID'] == from_uid:
                     Dicom_reader.set_index(index)  # CBCT
-                    Dicom_reader.get_images()
-                    date = Dicom_reader.reader.GetMetaData(0, "0008|0022") #YYYYMMDD
-                    time_stamp = Dicom_reader.reader.GetMetaData(0, "0008|0032") #YYYYMMDD
+                    date = Dicom_reader.return_key_info("0008|0022") #YYYYMMDD
+                    time_stamp = Dicom_reader.return_key_info("0008|0032")
                     update_from_time = False
                     if date in date_time_dict:
                         time_previous = date_time_dict[date]
@@ -294,9 +293,10 @@ def create_registered_cbct(patient_path, rewrite=False):
                             fid.close()
                     else:
                         date_time_dict[date] = time_stamp
-                    cbct_handle = Dicom_reader.dicom_handle
                     out_reg_file = os.path.join(out_folder, "Registered_CBCT_{}.mha".format(date))
                     if not os.path.exists(out_reg_file) or update_from_time:
+                        Dicom_reader.get_images()
+                        cbct_handle = Dicom_reader.dicom_handle
                         sitk.WriteImage(cbct_handle, os.path.join(out_folder, "CBCT_{}.mha".format(date)))
                         registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
                                                           moving_series_instance_uid=from_uid,
@@ -513,7 +513,7 @@ def return_plan_dictionary(patient_path):
 def create_transmission(patient_path, rewrite):
     fluence_reader = FluenceReader()
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
-    Dicom_reader.down_folder(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
+    Dicom_reader.walk_through_folders(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
     dicom_files = glob(os.path.join(patient_path, "RTIMAGE", "*.dcm"))
     padded_cbct = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT_*"))
     dates = [i.split("_")[-1].split('.')[0] for i in padded_cbct]
