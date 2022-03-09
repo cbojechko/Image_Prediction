@@ -17,6 +17,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
     output_list = []
     excel_path = os.path.join('.', "Patient_Keys.xlsx")
     excel_path = r'R:\Bojechko\patientlist_030722.xlsx'
+    print("We are not adding patients in the excel file! This is only loading from an available excel file, we aware!")
     patient_id_column = 'MRN'
     if not os.path.exists(excel_path):
         data_dictionary = {patient_id_column: [], 'Index': []}
@@ -34,7 +35,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
                 previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN[1:]]
             if previous_run.shape[0] == 0:
                 print("Issue with {}".format(patient_MRN))
-                return None
+                continue
                 rewrite_excel = True
                 i = 0
                 while i in df['Index'].values:
