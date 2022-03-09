@@ -7,7 +7,7 @@ from tqdm import tqdm
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
-from DicomRTTool.ReaderWriter import DicomReaderWriter, plot_scroll_Image, pydicom
+from PreProcessingTools.Dicom_RT_and_Images_to_Mask.src.DicomRTTool.ReaderWriter import DicomReaderWriter, plot_scroll_Image, pydicom
 
 logs_file = os.path.join('.', 'errors_log.txt')
 if not os.path.exists(logs_file):
@@ -270,6 +270,7 @@ def create_registered_cbct(patient_path, rewrite=False):
         fid.write("No registration folder for {}\n".format(patient_path))
         fid.close()
         print("{} does not exist! Export it".format(reg_path))
+    date_time_dict = {}
     for file in os.listdir(reg_path):
         ds = pydicom.read_file(os.path.join(reg_path, file))
         for ref in ds.ReferencedSeriesSequence:
@@ -281,9 +282,21 @@ def create_registered_cbct(patient_path, rewrite=False):
                     Dicom_reader.set_index(index)  # CBCT
                     Dicom_reader.get_images()
                     date = Dicom_reader.reader.GetMetaData(0, "0008|0022") #YYYYMMDD
+                    time_stamp = Dicom_reader.reader.GetMetaData(0, "0008|0032") #YYYYMMDD
+                    update_from_time = False
+                    if date in date_time_dict:
+                        time_previous = date_time_dict[date]
+                        if time_stamp > time_previous:
+                            update_from_time = True
+                            print("Rewriting the file based on the time stamps...")
+                            fid = open(logs_file, 'a')
+                            fid.write("Multiple CBCTs per day on {}\n".format(patient_path))
+                            fid.close()
+                    else:
+                        date_time_dict[date] = time_stamp
                     cbct_handle = Dicom_reader.dicom_handle
                     out_reg_file = os.path.join(out_folder, "Registered_CBCT_{}.mha".format(date))
-                    if not os.path.exists(out_reg_file):
+                    if not os.path.exists(out_reg_file) or update_from_time:
                         sitk.WriteImage(cbct_handle, os.path.join(out_folder, "CBCT_{}.mha".format(date)))
                         registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
                                                           moving_series_instance_uid=from_uid,
@@ -557,11 +570,11 @@ def create_inputs(patient_path, rewrite=False):
     if os.path.exists(skip) and not rewrite:
         return None
     create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path)
-    create_transmission(patient_path=patient_path, rewrite=rewrite)
-    createDRRs(patient_path=patient_path, rewrite=rewrite)
-    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
-    shift_panel_origin(patient_path=patient_path)
+    # create_padded_cbcts(patient_path=patient_path)
+    # create_transmission(patient_path=patient_path, rewrite=rewrite)
+    # createDRRs(patient_path=patient_path, rewrite=rewrite)
+    # createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    # shift_panel_origin(patient_path=patient_path)
     fid = open(skip, 'w+')
     fid.close()
     return None
