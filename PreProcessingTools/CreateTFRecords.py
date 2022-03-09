@@ -16,24 +16,30 @@ def return_dictionary_list(base_path, out_path, rewrite):
     """
     output_list = []
     excel_path = os.path.join('.', "Patient_Keys.xlsx")
+    excel_path = r'R:\Bojechko\patientlist_030722.xlsx'
+    patient_id_column = 'MRN'
     if not os.path.exists(excel_path):
-        data_dictionary = {'Patient #': [], 'Index': []}
+        data_dictionary = {patient_id_column: [], 'Index': []}
         df = pd.DataFrame(data_dictionary)
         df.to_excel(excel_path, index=0)
     else:
-        df = pd.read_excel(excel_path, engine='openpyxl')
+        df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='folds')
     rewrite_excel = False
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(base_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         for patient_MRN in MRN_list:
-            previous_run = df.loc[df['Patient #'] == patient_MRN]
+            previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN]
             if previous_run.shape[0] == 0:
+                previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN[1:]]
+            if previous_run.shape[0] == 0:
+                print("Issue with {}".format(patient_MRN))
+                return None
                 rewrite_excel = True
                 i = 0
                 while i in df['Index'].values:
                     i += 1
-                df = df.append(pd.DataFrame({'Patient #': [patient_MRN], 'Index': [i]}))
+                df = df.append(pd.DataFrame({patient_id_column: [patient_MRN], 'Index': [i]}))
             else:
                 i = int(previous_run['Index'].values[0])
             print(patient_MRN)

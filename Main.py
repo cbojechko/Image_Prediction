@@ -7,7 +7,7 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-create_patient_inputs = True
+create_patient_inputs = False
 if create_patient_inputs:
     from PreProcessingTools.Main import create_inputs, tqdm
     """
@@ -34,6 +34,6 @@ if create_patient_inputs:
 Lets create some .tfrecords from data already made
 """
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-if False:
+if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path, rewrite=True)

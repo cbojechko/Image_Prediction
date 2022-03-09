@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+errors_log.txt
 Data/
 MRN.txt
 # C extensions
