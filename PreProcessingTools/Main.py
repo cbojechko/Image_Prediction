@@ -353,7 +353,7 @@ def pad_cbct(cbct_handle: sitk.Image, ct_handle: sitk.Image, expansion=2, min_fr
     return padded_cbct_handle
 
 
-def create_padded_cbcts(patient_path):
+def create_padded_cbcts(patient_path, rewrite=False):
     patient_path = os.path.join(patient_path, "Niftiis")
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
     if not os.path.exists(primary_CT_path):
@@ -363,14 +363,12 @@ def create_padded_cbcts(patient_path):
         fid.close()
         return None
     status_file = os.path.join(patient_path, "Finished_Padded_CBCT.txt")
-    if os.path.exists(status_file):
+    if os.path.exists(status_file) and not rewrite:
         return None
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
         out_file = CBCT_File.replace("Registered_CBCT", "Padded_CBCT")
-        if os.path.exists(out_file):
-            continue
         registered_handle = sitk.ReadImage(CBCT_File)
         padded_cbct = pad_cbct(registered_handle, CT_handle, expansion=2, min_fraction=0.1)
         sitk.WriteImage(padded_cbct, out_file)
@@ -570,7 +568,7 @@ def create_inputs(patient_path, rewrite=False):
     if os.path.exists(skip) and not rewrite:
         return None
     create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path)
+    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
     createHalfDRRs(patient_path=patient_path, rewrite=rewrite)

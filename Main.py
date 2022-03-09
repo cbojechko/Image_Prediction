@@ -17,7 +17,7 @@ if create_patient_inputs:
     Fourth, align the PDOS and fluence with the DRRs
     """
     path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-    rewrite = False
+    rewrite = True
     for patient_data in ['PatientData2']:
         base_patient_path = os.path.join(path, patient_data)
         MRN_list = os.listdir(base_patient_path)
