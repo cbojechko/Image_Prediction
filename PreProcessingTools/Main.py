@@ -570,11 +570,11 @@ def create_inputs(patient_path, rewrite=False):
     if os.path.exists(skip) and not rewrite:
         return None
     create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    # create_padded_cbcts(patient_path=patient_path)
-    # create_transmission(patient_path=patient_path, rewrite=rewrite)
-    # createDRRs(patient_path=patient_path, rewrite=rewrite)
-    # createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
-    # shift_panel_origin(patient_path=patient_path)
+    create_padded_cbcts(patient_path=patient_path)
+    create_transmission(patient_path=patient_path, rewrite=rewrite)
+    createDRRs(patient_path=patient_path, rewrite=rewrite)
+    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    shift_panel_origin(patient_path=patient_path)
     fid = open(skip, 'w+')
     fid.close()
     return None
