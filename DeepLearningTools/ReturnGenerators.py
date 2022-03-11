@@ -28,7 +28,7 @@ def get_mean_std(train_generator):
 def create_files_for_streamline(records_path):
     out_path_numpy = os.path.join(records_path, 'NumpyFiles')
     out_path_jpeg = os.path.join(records_path, 'Jpegs')
-    for fold in range(5, -1, -1):
+    for fold in [0]:
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
         if fold == 0:
             train_path = os.path.join(records_path, 'Train')
@@ -115,5 +115,5 @@ def main():
 
 
 if __name__ == '__main__':
-    train_generator = main()
+    # train_generator = main()
     pass
