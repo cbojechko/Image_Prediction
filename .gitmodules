@@ -7,3 +7,6 @@
 [submodule "PreProcessingTools/RegisteringImages"]
 	path = PreProcessingTools/RegisteringImages
 	url = https://github.com/brianmanderson/RegisteringImages
+[submodule "PreProcessingTools/Dicom_RT_and_Images_to_Mask"]
+	path = PreProcessingTools/Dicom_RT_and_Images_to_Mask
+	url = https://github.com/brianmanderson/Dicom_RT_and_Images_to_Mask

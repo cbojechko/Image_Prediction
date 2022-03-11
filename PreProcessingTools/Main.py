@@ -7,7 +7,12 @@ from tqdm import tqdm
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
-from DicomRTTool.ReaderWriter import DicomReaderWriter, plot_scroll_Image, pydicom
+from PreProcessingTools.Dicom_RT_and_Images_to_Mask.src.DicomRTTool.ReaderWriter import DicomReaderWriter, plot_scroll_Image, pydicom
+
+logs_file = os.path.join('.', 'errors_log.txt')
+if not os.path.exists(logs_file):
+    logs_fid = open(logs_file, 'w+')
+    logs_fid.close()
 
 
 def rotate_and_translate_image(itk_image, translations=(0, 0, 0), rotations=(0, 0, 0)):
@@ -181,6 +186,9 @@ def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
 
 def expandDRR(patient_path):
     if not os.path.exists(os.path.join(patient_path, 'Primary_CT_DRR.mha')):
+        fid = open(logs_file, 'a')
+        fid.write("No primary CT_DRR for {}\n".format(patient_path))
+        fid.close()
         print("Could not find Primary_CT_DRR!")
         return None
     CBCT_DRR_Files = glob(os.path.join(patient_path, 'CBCT*DRR.mha'))
@@ -224,6 +232,9 @@ def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
 def create_registered_cbct(patient_path, rewrite=False):
     if not os.path.exists(os.path.join(patient_path, 'pCT')):
         print("No primary CT for {}".format(patient_path))
+        fid = open(logs_file, 'a')
+        fid.write("No primary CT for {}\n".format(patient_path))
+        fid.close()
         return None
     out_folder = os.path.join(patient_path, "Niftiis")
     status_file = os.path.join(out_folder, "Finished_Reg_CBCT.txt")
@@ -235,7 +246,7 @@ def create_registered_cbct(patient_path, rewrite=False):
     CT_SIUID = None
     primary_CTSUID_path = os.path.join(out_folder, "PrimaryCTSIUD.txt")
     if not os.path.exists(primary_CTSUID_path):
-        Dicom_reader.down_folder(os.path.join(patient_path, 'pCT'))  # Read in the primary CT
+        Dicom_reader.walk_through_folders(os.path.join(patient_path, 'pCT'))  # Read in the primary CT
         for index in Dicom_reader.indexes_with_contours:
             if Dicom_reader.series_instances_dictionary[index]['Description'] is not None:
                 Dicom_reader.set_index(index)  # Primary CT
@@ -252,8 +263,14 @@ def create_registered_cbct(patient_path, rewrite=False):
         CT_SIUID = fid.readline()
         fid.close()
         CT_handle = sitk.ReadImage(os.path.join(out_folder, "Primary_CT.mha"))
-    Dicom_reader.down_folder(os.path.join(patient_path, 'CT')) # Read in the CBCTs
+    Dicom_reader.walk_through_folders(os.path.join(patient_path, 'CT')) # Read in the CBCTs
     reg_path = os.path.join(patient_path, 'REG')
+    if not os.path.exists(reg_path):
+        fid = open(logs_file, 'a')
+        fid.write("No registration folder for {}\n".format(patient_path))
+        fid.close()
+        print("{} does not exist! Export it".format(reg_path))
+    date_time_dict = {}
     for file in os.listdir(reg_path):
         ds = pydicom.read_file(os.path.join(reg_path, file))
         for ref in ds.ReferencedSeriesSequence:
@@ -263,11 +280,23 @@ def create_registered_cbct(patient_path, rewrite=False):
             for index in Dicom_reader.indexes_with_contours:
                 if Dicom_reader.series_instances_dictionary[index]['SeriesInstanceUID'] == from_uid:
                     Dicom_reader.set_index(index)  # CBCT
-                    Dicom_reader.get_images()
-                    date = Dicom_reader.reader.GetMetaData(0, "0008|0022") #YYYYMMDD
-                    cbct_handle = Dicom_reader.dicom_handle
+                    date = Dicom_reader.return_key_info("0008|0022") #YYYYMMDD
+                    time_stamp = Dicom_reader.return_key_info("0008|0032")
+                    update_from_time = False
+                    if date in date_time_dict:
+                        time_previous = date_time_dict[date]
+                        if time_stamp > time_previous:
+                            update_from_time = True
+                            print("Rewriting the file based on the time stamps...")
+                            fid = open(logs_file, 'a')
+                            fid.write("Multiple CBCTs per day on {}\n".format(patient_path))
+                            fid.close()
+                    else:
+                        date_time_dict[date] = time_stamp
                     out_reg_file = os.path.join(out_folder, "Registered_CBCT_{}.mha".format(date))
-                    if not os.path.exists(out_reg_file):
+                    if not os.path.exists(out_reg_file) or update_from_time:
+                        Dicom_reader.get_images()
+                        cbct_handle = Dicom_reader.dicom_handle
                         sitk.WriteImage(cbct_handle, os.path.join(out_folder, "CBCT_{}.mha".format(date)))
                         registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
                                                           moving_series_instance_uid=from_uid,
@@ -324,21 +353,22 @@ def pad_cbct(cbct_handle: sitk.Image, ct_handle: sitk.Image, expansion=2, min_fr
     return padded_cbct_handle
 
 
-def create_padded_cbcts(patient_path):
+def create_padded_cbcts(patient_path, rewrite=False):
     patient_path = os.path.join(patient_path, "Niftiis")
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
     if not os.path.exists(primary_CT_path):
         print("Primary CT does not exist!")
+        fid = open(logs_file, 'a')
+        fid.write("No primary CT for {}\n".format(patient_path))
+        fid.close()
         return None
     status_file = os.path.join(patient_path, "Finished_Padded_CBCT.txt")
-    if os.path.exists(status_file):
+    if os.path.exists(status_file) and not rewrite:
         return None
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
         out_file = CBCT_File.replace("Registered_CBCT", "Padded_CBCT")
-        if os.path.exists(out_file):
-            continue
         registered_handle = sitk.ReadImage(CBCT_File)
         padded_cbct = pad_cbct(registered_handle, CT_handle, expansion=2, min_fraction=0.1)
         sitk.WriteImage(padded_cbct, out_file)
@@ -481,7 +511,7 @@ def return_plan_dictionary(patient_path):
 def create_transmission(patient_path, rewrite):
     fluence_reader = FluenceReader()
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
-    Dicom_reader.down_folder(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
+    Dicom_reader.walk_through_folders(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
     dicom_files = glob(os.path.join(patient_path, "RTIMAGE", "*.dcm"))
     padded_cbct = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT_*"))
     dates = [i.split("_")[-1].split('.')[0] for i in padded_cbct]
@@ -521,7 +551,8 @@ def create_transmission(patient_path, rewrite):
             continue
         fluence_reader.load_file()
         if description == "PDOS":
-            fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
+            if image_type.find("CALCULATED_DOSE") != -1:
+                fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
         sitk.WriteImage(fluence_reader.dicom_handle, out_file)
     return None
 
@@ -533,12 +564,17 @@ def create_inputs(patient_path, rewrite=False):
     Third, create the DRR and half-CBCT DRR for each beam angle
     Fourth, align the PDOS and fluence with the DRRs
     """
+    skip = os.path.join(patient_path, 'Inputs_made.txt')
+    if os.path.exists(skip) and not rewrite:
+        return None
     create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path)
+    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
     createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
     shift_panel_origin(patient_path=patient_path)
+    fid = open(skip, 'w+')
+    fid.close()
     return None
 
 
