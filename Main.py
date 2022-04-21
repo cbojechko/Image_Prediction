@@ -7,7 +7,9 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-create_patient_inputs = False
+create_patient_inputs = True
+rewrite = True
+data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
 if create_patient_inputs:
     from PreProcessingTools.Main import create_inputs, tqdm
     """
@@ -16,10 +18,8 @@ if create_patient_inputs:
     Third, create the DRR and half-CBCT DRR for each beam angle
     Fourth, align the PDOS and fluence with the DRRs
     """
-    path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-    rewrite = True
-    for patient_data in ['PatientData2']:
-        base_patient_path = os.path.join(path, patient_data)
+    for patient_data in ['phantom']:
+        base_patient_path = os.path.join(data_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         # fid = open(os.path.join('.', 'PreProcessingTools', 'MRN'))
         # MRN_list = [fid.readline()]
@@ -33,7 +33,6 @@ if create_patient_inputs:
 """
 Lets create some .tfrecords from data already made
 """
-data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-if True:
+if False:
     from PreProcessingTools.CreateTFRecords import create_tf_records
-    create_tf_records(data_path, rewrite=True)
+    create_tf_records(data_path, rewrite=rewrite)
