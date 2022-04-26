@@ -16,8 +16,8 @@ def return_dictionary_list(base_path, out_path, rewrite):
     """
     output_list = []
     excel_path = os.path.join('.', "Patient_Keys.xlsx")
-    excel_path = r'R:\Bojechko\patientlist_030722.xlsx'
-    print("We are not adding patients in the excel file! This is only loading from an available excel file, we aware!")
+    excel_path = r'R:\Bojechko\patientlist_032222.xlsx'
+    # print("We are not adding patients in the excel file! This is only loading from an available excel file, we aware!")
     patient_id_column = 'MRN'
     if not os.path.exists(excel_path):
         data_dictionary = {patient_id_column: [], 'Index': []}
@@ -33,6 +33,11 @@ def return_dictionary_list(base_path, out_path, rewrite):
             previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN]
             if previous_run.shape[0] == 0:
                 previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN[1:]]
+            if previous_run.shape[0] == 0:
+                try:
+                    previous_run = df.loc[df[patient_id_column].astype('int') == int(patient_MRN)]
+                except:
+                    print('Issue with {}'.format(patient_MRN))
             if previous_run.shape[0] == 0:
                 print("Issue with {}".format(patient_MRN))
                 continue
@@ -98,7 +103,7 @@ def make_train_records(base_path, rewrite=False):
                                                       resample_interpolators=['Linear' for _ in range(len(keys))]),
         Processors.SimpleITKImageToArray(nifti_keys=keys, out_keys=array_keys,
                                          dtypes=['float32' for _ in range(len(keys))]),
-        Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=2**5, power_val_y=2**5,
+        Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=2**8, power_val_y=2**8,
                              image_keys=array_keys),
         Processors.DeleteKeys(keys_to_delete=keys),
         # Processors.AddByValues(image_keys=('image',), values=(0,)),
