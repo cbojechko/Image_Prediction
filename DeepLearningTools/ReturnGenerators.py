@@ -167,6 +167,8 @@ def return_fold_datasets(data_generators, excluded_fold=5, batch_size=1):
 
 def main():
     records_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords'
+    create_files_for_streamline(records_path)
+    return None
     data_generators = {}
     for i in range(1, 6):
         data_generators[i] = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\Train\fold{}'.format(i)])
@@ -174,7 +176,7 @@ def main():
     if not os.path.exists(records_path):
         records_path = os.path.abspath(os.path.join('..', 'Data'))
     print(records_path)
-    # create_files_for_streamline(records_path)
+
     train_generator, validation_generator = return_generators(records_path=records_path)
     iterator = iter(train_generator.data_set)
     for _ in range(1):
