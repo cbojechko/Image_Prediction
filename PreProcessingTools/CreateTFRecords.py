@@ -98,7 +98,7 @@ def make_train_records(base_path, rewrite=False):
                                                       resample_interpolators=['Linear' for _ in range(len(keys))]),
         Processors.SimpleITKImageToArray(nifti_keys=keys, out_keys=array_keys,
                                          dtypes=['float32' for _ in range(len(keys))]),
-        Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=2**5, power_val_y=2**5,
+        Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=2**8, power_val_y=2**8,
                              image_keys=array_keys),
         Processors.DeleteKeys(keys_to_delete=keys),
         # Processors.AddByValues(image_keys=('image',), values=(0,)),
