@@ -71,8 +71,8 @@ def build_cache(generator):
 
 
 def return_generators(records_path):
-    train_path = os.path.join(records_path, 'Train')
-    validation_path = os.path.join(records_path, 'Validation')
+    train_path = os.path.join(records_path, 'Train', 'fold1')
+    validation_path = os.path.join(records_path, 'Train', 'fold2')
     train_generator = DataGeneratorClass(record_paths=[train_path])
     validation_generator = DataGeneratorClass(record_paths=[validation_path])
     all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
@@ -82,17 +82,19 @@ def return_generators(records_path):
         Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
                                         image_cols=[256 for _ in range(len(all_keys))],
                                         is_mask=[False for _ in range(len(all_keys))]),
+        Processors.MultiplyImagesByConstant(all_keys, values=(2/255, 2/255, 2/255, 1/255)), # Scale to be 0-2, and 0-1
+        Processors.Add_Constant(all_keys, values=(-1, -1, -1, 0)), # Slide -1-1, and 0-1
         Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
                                output_key='combined'),
         Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',))
         ]
     train_processors = [
-        {'cache': train_path},
+        # {'cache': train_path},
         {'shuffle': len(train_generator) // 3},
         {'batch': 1}, {'repeat'}
     ]
     validation_processors = [
-        {'cache': validation_path},
+        # {'cache': validation_path},
         {'batch': 1}, {'repeat'}
     ]
     train_generator.compile_data_set(image_processors=base_processors + train_processors, debug=False)
@@ -104,16 +106,84 @@ def return_generators(records_path):
     return train_generator, validation_generator
 
 
+def load_data_from_generator(generator):
+    data = {'input' : [], 'rtimg' : []}
+    iterator = iter(generator.data_set)
+    for _ in range(len(generator)):
+        x, y = next(iterator)
+        data['input'].append(x[0][0])
+        data['rtimg'].append(y[0][0])
+    return data
+
+
+def return_datasets(data_generators):
+    all_datasets = {}
+    for i in data_generators.keys():
+        generator = data_generators[i]
+        all_datasets[i] = tf.data.Dataset.from_tensor_slices((load_data_from_generator(generator)))
+    return all_datasets
+
+
+def return_generator(records_paths):
+    generator = DataGeneratorClass(record_paths=records_paths)
+    all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
+    base_processors = [
+        Processors.Squeeze(image_keys=all_keys),
+        Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
+                                        image_cols=[256 for _ in range(len(all_keys))],
+                                        is_mask=[False for _ in range(len(all_keys))]),
+        Processors.Add_Constant(keys=all_keys,
+                                values=(-255/2, -255/2, -255/2, -255/2)),
+        Processors.MultiplyImagesByConstant(keys=all_keys, values=(2/255, 2/255, 2/255, 2/255)),
+        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
+                               output_key='combined'),
+        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',)),
+        {'shuffle': len(generator) // 3}, {'batch': 1}, {'repeat'}
+        ]
+    generator.compile_data_set(image_processors=base_processors, debug=False)
+    return generator
+
+
+def return_fold_datasets(data_generators, excluded_fold=5, batch_size=1):
+    all_datasets = return_datasets(data_generators)
+    train_dataset = None
+    for i in data_generators.keys():
+        print(i)
+        dataset = all_datasets[i]
+        print(dataset)
+        if i == excluded_fold:
+            valid_dataset = dataset
+            valid_dataset = valid_dataset.shuffle(len(dataset))
+            valid_dataset = valid_dataset.batch(batch_size)
+        elif train_dataset is None:
+            train_dataset = dataset
+        else:
+            train_dataset = train_dataset.concatenate(dataset)
+    train_dataset.shuffle(len(train_dataset))
+    train_dataset = train_dataset.batch(batch_size)
+    return train_dataset, valid_dataset
+
+
 def main():
     records_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords'
+    data_generators = {}
+    for i in range(1, 6):
+        data_generators[i] = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\Train\fold{}'.format(i)])
+    train_dataset, valid_dataset = return_fold_datasets(data_generators, excluded_fold=5, batch_size=1)
     if not os.path.exists(records_path):
         records_path = os.path.abspath(os.path.join('..', 'Data'))
     print(records_path)
-    create_files_for_streamline(records_path)
-    # train_generator, validation_generator = return_generators(records_path=records_path)
+    # create_files_for_streamline(records_path)
+    train_generator, validation_generator = return_generators(records_path=records_path)
+    iterator = iter(train_generator.data_set)
+    for _ in range(1):
+        for i in range(len(train_generator)):
+            x, y = next(iterator)
+            print(i)
     # return train_generator
 
 
 if __name__ == '__main__':
-    # train_generator = main()
+    train_generator = main()
     pass
