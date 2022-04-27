@@ -93,10 +93,11 @@ def make_train_records(base_path, rewrite=False):
     Then resample the PDOS to be 1x1x1mm
     Resample everything else to fit around the PDOS
     """
+    spacing = 1.68
     train_processors = [
         Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'half_drr_path', 'full_drr_path'),
                              out_keys=keys),
-        Processors.ResampleSITKHandles(desired_output_spacing=(2.0, 2.0, 1.0), resample_keys=('pdos_handle',),
+        Processors.ResampleSITKHandles(desired_output_spacing=(spacing, spacing, 1.0), resample_keys=('pdos_handle',),
                                        resample_interpolators=['Linear',]),
         Processors.ResampleSITKHandlesToAnotherHandle(resample_keys=keys,
                                                       reference_handle_keys=['pdos_handle' for _ in range(len(keys))],
