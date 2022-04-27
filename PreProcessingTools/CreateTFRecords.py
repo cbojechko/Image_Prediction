@@ -26,7 +26,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
     else:
         df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='folds')
     rewrite_excel = False
-    for patient_data in ['PatientData2']:
+    for patient_data in ['phantom', 'PatientData2']:
         base_patient_path = os.path.join(base_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         for patient_MRN in MRN_list:
@@ -104,7 +104,7 @@ def make_train_records(base_path, rewrite=False):
         Processors.SimpleITKImageToArray(nifti_keys=keys, out_keys=array_keys,
                                          dtypes=['float32' for _ in range(len(keys))]),
         Processors.PadImages(bounding_box_expansion=(0, 0, 0), power_val_z=1, power_val_x=2**8, power_val_y=2**8,
-                             image_keys=array_keys),
+                             image_keys=array_keys, mode='linear_ramp', min_val=None),
         Processors.DeleteKeys(keys_to_delete=keys),
         # Processors.AddByValues(image_keys=('image',), values=(0,)),
         Processors.ChangeArrayByArgInArray(reference_keys=('pdos_array', 'pdos_array'),  # Scale fluence based on pdos
