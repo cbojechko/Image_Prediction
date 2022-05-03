@@ -79,7 +79,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
 
 
 def make_train_records(base_path, rewrite=False):
-    out_path = os.path.join(base_path, 'TFRecords', 'Train')
+    out_path = os.path.join(base_path, 'TFRecords', 'TrainNoNormalization')
     train_list = return_dictionary_list(base_path, out_path, rewrite)
     if not train_list:
         print("No new files found for record making")
@@ -108,15 +108,11 @@ def make_train_records(base_path, rewrite=False):
                              image_keys=array_keys, mode='linear_ramp', min_val=None),
         Processors.DeleteKeys(keys_to_delete=keys),
         # Processors.AddByValues(image_keys=('image',), values=(0,)),
-        Processors.ChangeArrayByArgInArray(reference_keys=('pdos_array', 'pdos_array'),  # Scale fluence based on pdos
-                                           value_args=(np.max, np.max), target_keys=('fluence_array', 'pdos_array'),
-                                           change_args=(np.divide, np.divide)),
-        Processors.MultiplyByValues(image_keys=('drr_array', 'half_drr_array', 'pdos_array', 'fluence_array'),
-                                    values=(255/300, 255/300, 255, 255)),  # 0-255
-
-        # Processors.Threshold_Images(image_keys=('image_array',), lower_bound=-3, upper_bound=3),
-        # Processors.AddByValues(image_keys=('image_array',), values=(3,)),
-        # Processors.DivideByValues(image_keys=('image_array',), values=(6,)),
+        # Processors.ChangeArrayByArgInArray(reference_keys=('pdos_array', 'pdos_array'),  # Scale fluence based on pdos
+        #                                    value_args=(np.max, np.max), target_keys=('fluence_array', 'pdos_array'),
+        #                                    change_args=(np.divide, np.divide)),
+        # Processors.MultiplyByValues(image_keys=('drr_array', 'half_drr_array', 'pdos_array', 'fluence_array'),
+        #                             values=(255/300, 255/300, 255, 255)),  # 0-255
     ]
 
     RecordWriter.parallel_record_writer(dictionary_list=train_list, thread_count=1, recordwriter=record_writer,
