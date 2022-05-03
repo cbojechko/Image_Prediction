@@ -3,7 +3,7 @@ from glob import glob
 from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
 import os
-from tqdm import tqdm
+from NiftiResampler import ResampleTools
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
@@ -384,7 +384,7 @@ def shift_panel_origin(patient_path):
         fluence_handle = sitk.ReadImage(fluence_file)
         spacing = fluence_handle.GetSpacing()
         size = fluence_handle.GetSize()
-        origin = [0, 0, -1540]
+        origin = [i for i in fluence_handle.GetOrigin()]
         origin[0] = - spacing[0] * (size[0] - 1)/2
         origin[1] = - spacing[1] * (size[1] - 1)/2
         fluence_handle.SetOrigin(origin)
@@ -510,6 +510,7 @@ def return_plan_dictionary(patient_path):
 
 def create_transmission(patient_path, rewrite):
     fluence_reader = FluenceReader()
+    resampler = ResampleTools.ImageResampler()
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
     Dicom_reader.walk_through_folders(os.path.join(patient_path, 'RTIMAGE')) # Read in the acquired images
     dicom_files = glob(os.path.join(patient_path, "RTIMAGE", "*.dcm"))
@@ -550,9 +551,16 @@ def create_transmission(patient_path, rewrite):
         if os.path.exists(out_file) and not rewrite:
             continue
         fluence_reader.load_file()
+        if fluence_reader.return_has_key("3002|000d"):
+            panel_shift = fluence_reader.return_key_info("3002|000d").split('\\')
+            panel_shift = [float(i) for i in panel_shift]
+            panel_shift[-1] = -float(fluence_reader.return_key_info("3002|0026"))
+            fluence_reader.dicom_handle.SetOrigin(panel_shift)
         if description == "PDOS":
             if image_type.find("CALCULATED_DOSE") != -1:
                 fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
+                if os.path.exists(out_file):
+                    continue
         sitk.WriteImage(fluence_reader.dicom_handle, out_file)
     return None
 
@@ -567,11 +575,11 @@ def create_inputs(patient_path, rewrite=False):
     skip = os.path.join(patient_path, 'Inputs_made.txt')
     if os.path.exists(skip) and not rewrite:
         return None
-    create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    # create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
+    # create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
-    createDRRs(patient_path=patient_path, rewrite=rewrite)
-    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    # createDRRs(patient_path=patient_path, rewrite=rewrite)
+    # createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
     shift_panel_origin(patient_path=patient_path)
     fid = open(skip, 'w+')
     fid.close()
