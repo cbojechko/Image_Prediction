@@ -1,7 +1,8 @@
 import numpy as np
 import os
 from Data_Generators.TFRecord_to_Dataset_Generator import DataGeneratorClass
-from Data_Generators.Image_Processors_Module.src.Processors import TFDataSetProcessors as Processors
+from Data_Generators.Image_Processors_Module.src.Processors.TFDataSets import ConstantProcessors as CProcessors,\
+    RelativeProcessors as RProcessors
 from PlotScrollNumpyArrays.Plot_Scroll_Images import plot_scroll_Image
 import tensorflow as tf
 from PIL import Image
@@ -31,18 +32,15 @@ def create_files_for_streamline(records_path):
     for fold in [0]:
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
         if fold == 0:
-            train_path = os.path.join(records_path, 'Train')
+            train_path = os.path.join(records_path, 'TrainNoNormalization')
         train_generator = DataGeneratorClass(record_paths=[train_path])
         all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
         processors = [
-            Processors.Squeeze(image_keys=all_keys),
-            Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
-            Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
-                                            image_cols=[256 for _ in range(len(all_keys))],
-                                            is_mask=[False for _ in range(len(all_keys))]),
-            Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
+            CProcessors.Squeeze(image_keys=all_keys),
+            CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+            CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
                                    output_key='combined'),
-            Processors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
+            CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
             {'batch': 1}, {'repeat'}
         ]
         train_generator.compile_data_set(image_processors=processors, debug=False)
@@ -50,6 +48,10 @@ def create_files_for_streamline(records_path):
         for i in range(len(train_generator)):
             x, y = next(iterator)
             numpy_array = x[0].numpy()
+            numpy_array[..., 0] /= np.max(numpy_array[..., 0])
+            numpy_array[..., 1] /= np.max(numpy_array[..., 1])
+            numpy_array[..., 2] /= np.max(numpy_array[..., 2])
+            numpy_array *= 255
             file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
             np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
             max_val = np.max(numpy_array[...,-1])
@@ -77,16 +79,16 @@ def return_generators(records_path):
     validation_generator = DataGeneratorClass(record_paths=[validation_path])
     all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
     base_processors = [
-        Processors.Squeeze(image_keys=all_keys),
-        Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
-        Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
+        CProcessors.Squeeze(image_keys=all_keys),
+        CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        CProcessors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
                                         image_cols=[256 for _ in range(len(all_keys))],
                                         is_mask=[False for _ in range(len(all_keys))]),
-        Processors.MultiplyImagesByConstant(all_keys, values=(2/255, 2/255, 2/255, 1/255)), # Scale to be 0-2, and 0-1
-        Processors.Add_Constant(all_keys, values=(-1, -1, -1, 0)), # Slide -1-1, and 0-1
-        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
+        CProcessors.MultiplyImagesByConstant(all_keys, values=(2/255, 2/255, 2/255, 1/255)), # Scale to be 0-2, and 0-1
+        CProcessors.Add_Constant(all_keys, values=(-1, -1, -1, 0)), # Slide -1-1, and 0-1
+        CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
                                output_key='combined'),
-        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',))
+        CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',))
         ]
     train_processors = [
         # {'cache': train_path},
@@ -128,17 +130,11 @@ def return_generator(records_paths):
     generator = DataGeneratorClass(record_paths=records_paths)
     all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
     base_processors = [
-        Processors.Squeeze(image_keys=all_keys),
-        Processors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
-        Processors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
-                                        image_cols=[256 for _ in range(len(all_keys))],
-                                        is_mask=[False for _ in range(len(all_keys))]),
-        Processors.Add_Constant(keys=all_keys,
-                                values=(-255/2, -255/2, -255/2, -255/2)),
-        Processors.MultiplyImagesByConstant(keys=all_keys, values=(2/255, 2/255, 2/255, 2/255)),
-        Processors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
+        CProcessors.Squeeze(image_keys=all_keys),
+        CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
                                output_key='combined'),
-        Processors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',)),
+        CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',)),
         {'shuffle': len(generator) // 3}, {'batch': 1}, {'repeat'}
         ]
     generator.compile_data_set(image_processors=base_processors, debug=False)
@@ -170,6 +166,7 @@ def main():
     create_files_for_streamline(records_path)
     return None
     data_generators = {}
+    xxx = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\TrainNoNormalization'])
     for i in range(1, 6):
         data_generators[i] = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\Train\fold{}'.format(i)])
     train_dataset, valid_dataset = return_fold_datasets(data_generators, excluded_fold=5, batch_size=1)
