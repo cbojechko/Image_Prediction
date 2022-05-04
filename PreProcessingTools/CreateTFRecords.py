@@ -97,10 +97,10 @@ def make_train_records(base_path, rewrite=False):
     train_processors = [
         Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'half_drr_path', 'full_drr_path'),
                              out_keys=keys),
-        Processors.ResampleSITKHandles(desired_output_spacing=(spacing, spacing, 1.0), resample_keys=('pdos_handle',),
+        Processors.ResampleSITKHandles(desired_output_spacing=(spacing, spacing, 1.0), resample_keys=('fluence_handle',),
                                        resample_interpolators=['Linear',]),
         Processors.ResampleSITKHandlesToAnotherHandle(resample_keys=keys,
-                                                      reference_handle_keys=['pdos_handle' for _ in range(len(keys))],
+                                                      reference_handle_keys=['fluence_handle' for _ in range(len(keys))],
                                                       resample_interpolators=['Linear' for _ in range(len(keys))]),
         Processors.SimpleITKImageToArray(nifti_keys=keys, out_keys=array_keys,
                                          dtypes=['float32' for _ in range(len(keys))]),

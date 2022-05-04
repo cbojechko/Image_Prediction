@@ -11,14 +11,15 @@ create_patient_inputs = False
 rewrite = True
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
 if create_patient_inputs:
-    from PreProcessingTools.Main import create_inputs, tqdm
+    from tqdm import tqdm
+    from PreProcessingTools.Main import create_inputs
     """
     First, for preprocessing, create the padded CBCTs by registering them with the primary CT and padding
     Second, create the fluence and PDOS images from DICOM handles
     Third, create the DRR and half-CBCT DRR for each beam angle
     Fourth, align the PDOS and fluence with the DRRs
     """
-    for patient_data in ['PatientData2']:
+    for patient_data in ['PatientData2', 'phantom']:
         base_patient_path = os.path.join(data_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         # fid = open(os.path.join('.', 'PreProcessingTools', 'MRN'))

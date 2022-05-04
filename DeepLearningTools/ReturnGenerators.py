@@ -28,7 +28,7 @@ def get_mean_std(train_generator):
 
 def create_files_for_streamline(records_path):
     out_path_numpy = os.path.join(records_path, 'NumpyFiles')
-    out_path_jpeg = os.path.join(records_path, 'Jpegs')
+    out_path_jpeg = os.path.join(records_path, 'JpegsNoNormalization')
     for fold in [0]:
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
         if fold == 0:
@@ -39,7 +39,7 @@ def create_files_for_streamline(records_path):
             CProcessors.Squeeze(image_keys=all_keys),
             CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
             CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
-                                   output_key='combined'),
+                                    output_key='combined'),
             CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
             {'batch': 1}, {'repeat'}
         ]
@@ -48,13 +48,18 @@ def create_files_for_streamline(records_path):
         for i in range(len(train_generator)):
             x, y = next(iterator)
             numpy_array = x[0].numpy()
+            file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
+            print(file_info)
+            if file_info.split('_')[0] == '10':
+                xxx = 1
             numpy_array[..., 0] /= np.max(numpy_array[..., 0])
             numpy_array[..., 1] /= np.max(numpy_array[..., 1])
             numpy_array[..., 2] /= np.max(numpy_array[..., 2])
+            numpy_array[..., 3] /= np.max(numpy_array[..., 3])
             numpy_array *= 255
-            file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
             np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
             max_val = np.max(numpy_array[...,-1])
+
             if max_val < 20:
                 print("{} max is {}".format(file_info, max_val))
             out_array = np.zeros((256, 256 * 4))
@@ -132,12 +137,32 @@ def return_generator(records_paths):
     base_processors = [
         CProcessors.Squeeze(image_keys=all_keys),
         CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+        # RProcessors.NormalizeBasedOnOther(guiding_keys=('pdos_array', 'pdos_array'),
+        #                                   changing_keys=('fluence_array', 'pdos_array'),
+        #                                   reference_method=('reduce_max', 'reduce_max'),
+        #                                   changing_methods=('divide', 'divide')),
+        CProcessors.MultiplyImagesByConstant(keys=('pdos_array', 'fluence_array',
+                                                   'drr_array', 'half_drr_array'), values=(1/3.448, 1/2.226,
+                                                                                           1/325, 1/175)),
         CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
-                               output_key='combined'),
+                                output_key='combined'),
         CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',)),
-        {'shuffle': len(generator) // 3}, {'batch': 1}, {'repeat'}
+        {'shuffle': len(generator) // 3},
+        {'batch': 1}, {'repeat'}
         ]
     generator.compile_data_set(image_processors=base_processors, debug=False)
+    values_pdos = []
+    values_fluence = []
+    values_drr = []
+    values_drr_half = []
+    iterator = iter(generator.data_set)
+    for _ in range(len(generator)):
+        x, y = next(iterator)
+        values_pdos.append(np.max(x[0][..., 0].numpy()))
+        values_drr.append(np.max(x[0][..., 1].numpy()))
+        values_drr_half.append(np.max(x[0][..., 2].numpy()))
+        values_fluence.append(np.max(y[0].numpy()))
+    xxx = 1
     return generator
 
 
@@ -163,10 +188,11 @@ def return_fold_datasets(data_generators, excluded_fold=5, batch_size=1):
 
 def main():
     records_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords'
-    create_files_for_streamline(records_path)
-    return None
+    # create_files_for_streamline(records_path)
+    # return None
     data_generators = {}
-    xxx = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\TrainNoNormalization'])
+    xxx = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\TrainNoNormalization\fold{}'.format(i) for i in range(1,6)])
+    return None
     for i in range(1, 6):
         data_generators[i] = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\Train\fold{}'.format(i)])
     train_dataset, valid_dataset = return_fold_datasets(data_generators, excluded_fold=5, batch_size=1)
