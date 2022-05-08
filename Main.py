@@ -37,3 +37,5 @@ Lets create some .tfrecords from data already made
 if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path, rewrite=rewrite)
+    from DeepLearningTools.ReturnGenerators import main
+    main()
