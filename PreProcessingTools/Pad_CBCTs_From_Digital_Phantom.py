@@ -2,8 +2,15 @@ import SimpleITK as sitk
 import os
 import numpy as np
 from glob import glob
-from PreProcessingTools.Main import array_to_sitk
 from PlotScrollNumpyArrays import plot_scroll_Image
+
+
+def array_to_sitk(array: np.ndarray, reference_handle: sitk.Image):
+    out_handle = sitk.GetImageFromArray(array)
+    out_handle.SetSpacing(reference_handle.GetSpacing())
+    out_handle.SetOrigin(reference_handle.GetOrigin())
+    out_handle.SetDirection(reference_handle.GetDirection())
+    return out_handle
 
 
 def update_CBCT(nifti_path, rewrite=False):
