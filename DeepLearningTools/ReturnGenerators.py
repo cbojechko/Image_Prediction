@@ -188,8 +188,8 @@ def return_fold_datasets(data_generators, excluded_fold=5, batch_size=1):
 
 def main():
     records_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords'
-    # create_files_for_streamline(records_path)
-    # return None
+    create_files_for_streamline(records_path)
+    return None
     data_generators = {}
     xxx = return_generator([r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords\TrainNoNormalization\fold{}'.format(i) for i in range(1,6)])
     return None

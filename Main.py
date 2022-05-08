@@ -7,7 +7,7 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-create_patient_inputs = False
+create_patient_inputs = True
 rewrite = True
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
 if create_patient_inputs:

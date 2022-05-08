@@ -1,5 +1,5 @@
 import copy
-
+import typing
 import SimpleITK
 from matplotlib import pyplot as plt
 from glob import glob
@@ -7,6 +7,7 @@ from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
 import os
 from NiftiResampler import ResampleTools
+from PreProcessingTools.Pad_CBCTs_From_Digital_Phantom import update_CBCT
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
@@ -555,7 +556,7 @@ def create_transmission(patient_path, rewrite):
     return None
 
 
-def create_inputs(patient_path, rewrite=False):
+def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=False):
     """
     First, for preprocessing, create the padded CBCTs by registering them with the primary CT and padding
     Second, create the fluence and PDOS images from DICOM handles
@@ -567,6 +568,8 @@ def create_inputs(patient_path, rewrite=False):
         return None
     create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
     create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    if patient_path.find('phantom') != -1:
+        update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
     createHalfDRRs(patient_path=patient_path, rewrite=rewrite)

@@ -6,9 +6,9 @@ from PreProcessingTools.Main import array_to_sitk
 from PlotScrollNumpyArrays import plot_scroll_Image
 
 
-def update_CBCT(nifti_path):
+def update_CBCT(nifti_path, rewrite=False):
     status_file = os.path.join(nifti_path, "Padded_from_air.txt")
-    if os.path.exists(status_file):
+    if os.path.exists(status_file) and not rewrite:
         return None
     padded_cbcts = glob(os.path.join(nifti_path, "Padded_CBCT_*"))
     for padded_cbct in padded_cbcts:
@@ -26,6 +26,7 @@ def update_CBCT(nifti_path):
                 padded_np[stop:] = padded_np[stop]
                 new_padded_handle = array_to_sitk(padded_np, reference_handle=padded_handle)
                 sitk.WriteImage(new_padded_handle, padded_cbct)
+                print('Rewriting {}'.format(nifti_path))
         fid = open(status_file, 'w+')
         fid.close()
 
@@ -39,4 +40,4 @@ def main_update_CBCT(path=r'R:\Bojechko\phantom'):
 
 
 if __name__ == '__main__':
-    main_update_CBCT()
+    pass
