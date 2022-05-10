@@ -331,7 +331,7 @@ def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.I
     spacing = cbct_handle.GetSpacing()
     couch_stop = cbct_array[cbct_s[0]//2, :, cbct_s[-1]//2]
     couch_stop = np.where(couch_stop > -800)[0][-1] + int(5 * spacing[1])  # Give a little bit of wiggle room
-    couch_start = couch_stop - int(50 * spacing[1])
+    couch_start = couch_stop - int(55 * spacing[1])
     ct_array[:, couch_stop:, :] = -1000
     cbct_array[:, couch_stop:, :] = -1000
     ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0] // 2, couch_start:couch_stop, cbct_s[-1] // 2][None, ..., None]
@@ -579,8 +579,8 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     if patient_path.find('phantom') != -1:
         update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     # create_transmission(patient_path=patient_path, rewrite=rewrite)
-    # createDRRs(patient_path=patient_path, rewrite=rewrite)
-    # createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    createDRRs(patient_path=patient_path, rewrite=rewrite)
+    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
     shift_panel_origin(patient_path=patient_path)
     fid = open(skip, 'w+')
     fid.close()
