@@ -327,7 +327,15 @@ def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.I
     """
     ct_array = sitk.GetArrayFromImage(ct_handle)
     cbct_array = sitk.GetArrayFromImage(cbct_handle)
-
+    cbct_s = cbct_array.shape
+    spacing = cbct_handle.GetSpacing()
+    couch_stop = cbct_array[cbct_s[0]//2, :, cbct_s[-1]//2]
+    couch_stop = np.where(couch_stop > -800)[0][-1] + int(5 * spacing[1])  # Give a little bit of wiggle room
+    couch_start = couch_stop - int(50 * spacing[1])
+    ct_array[:, couch_stop:, :] = -1000
+    cbct_array[:, couch_stop:, :] = -1000
+    ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0] // 2, couch_start:couch_stop, cbct_s[-1] // 2][None, ..., None]
+    cbct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0] // 2, couch_start:couch_stop, cbct_s[-1] // 2][None, ..., None]
     binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
     eroded_meta = erode_filter.Execute(binary_meta)
     eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
@@ -351,7 +359,7 @@ def create_padded_cbcts(patient_path, rewrite=False):
         return None
     erode_filter = sitk.BinaryErodeImageFilter()
     erode_filter.SetKernelType(sitk.sitkBall)
-    erode_filter.SetKernelRadius((0, 0, 3)) # First only expand in the z direction
+    erode_filter.SetKernelRadius((0, 0, 5)) # First only expand in the z direction
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
@@ -566,13 +574,13 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     skip = os.path.join(patient_path, 'Inputs_made.txt')
     if os.path.exists(skip) and not rewrite:
         return None
-    create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
+    # create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
     create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     if patient_path.find('phantom') != -1:
         update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-    create_transmission(patient_path=patient_path, rewrite=rewrite)
-    createDRRs(patient_path=patient_path, rewrite=rewrite)
-    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    # create_transmission(patient_path=patient_path, rewrite=rewrite)
+    # createDRRs(patient_path=patient_path, rewrite=rewrite)
+    # createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
     shift_panel_origin(patient_path=patient_path)
     fid = open(skip, 'w+')
     fid.close()
