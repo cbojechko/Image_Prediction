@@ -34,7 +34,7 @@ if create_patient_inputs:
 """
 Lets create some .tfrecords from data already made
 """
-if False:
+if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path, rewrite=rewrite)
     from DeepLearningTools.ReturnGenerators import main
