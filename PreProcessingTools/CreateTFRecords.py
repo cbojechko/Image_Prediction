@@ -48,6 +48,8 @@ def return_dictionary_list(base_path, out_path, rewrite):
                 df = df.append(pd.DataFrame({patient_id_column: [patient_MRN], 'Index': [i]}))
             else:
                 i = int(previous_run['Index'].values[0])
+            # if i != 12:
+            #     continue
             print(patient_MRN)
             path = os.path.join(base_patient_path, patient_MRN, 'Niftiis')
             pdos_files = glob(os.path.join(path, 'PDOS_G*'))
