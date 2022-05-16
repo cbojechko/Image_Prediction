@@ -275,6 +275,7 @@ def create_registered_cbct(patient_path, rewrite=False):
         fid.close()
         print("{} does not exist! Export it".format(reg_path))
     date_time_dict = {}
+    resampler = ResampleTools.ImageResampler()
     for file in os.listdir(reg_path):
         ds = pydicom.read_file(os.path.join(reg_path, file))
         for ref in ds.ReferencedSeriesSequence:
@@ -299,26 +300,37 @@ def create_registered_cbct(patient_path, rewrite=False):
                         date_time_dict[date] = time_stamp
                     out_reg_file = os.path.join(out_folder, "Registered_CBCT_{}.mha".format(date))
                     out_meta_file = os.path.join(out_folder, "Registered_Meta_{}.mha".format(date))
+                    out_table_vert = os.path.join(out_folder, "TableHeight_CBCT_{}.txt".format(date))
                     if not os.path.exists(out_reg_file) or update_from_time or rewrite:
                         Dicom_reader.get_images()
                         cbct_handle = Dicom_reader.dicom_handle
                         sitk.WriteImage(cbct_handle, os.path.join(out_folder, "CBCT_{}.mha".format(date)))
-                        registered_handle = registerDicom(fixed_image=CT_handle,  moving_image=cbct_handle,
-                                                          moving_series_instance_uid=from_uid,
-                                                          dicom_registration=ds, min_value=-1000, method=sitk.sitkLinear)
+                        couch_vert = float(Dicom_reader.reader.GetMetaData(0, "0018|1130"))
+                        couch = (0, couch_vert, 0)
+                        registered_handle, affine_transform = registerDicom(fixed_image=CT_handle,
+                                                                            moving_image=cbct_handle,
+                                                                            moving_series_instance_uid=from_uid,
+                                                                            dicom_registration=ds, min_value=-1000,
+                                                                            method=sitk.sitkLinear,
+                                                                            return_affine=True)
+                        registered_couch = affine_transform.GetInverse().TransformPoint(couch)
                         meta = sitk.Image(cbct_handle)*0 + 1
                         registered_meta = registerDicom(fixed_image=CT_handle,  moving_image=meta,
                                                         moving_series_instance_uid=from_uid, dicom_registration=ds,
                                                         min_value=0, method=sitk.sitkLinear)
                         sitk.WriteImage(sitk.Cast(registered_meta, sitk.sitkUInt8), out_meta_file)
                         sitk.WriteImage(registered_handle, out_reg_file)
+                        isocenter = registered_handle.TransformPhysicalPointToIndex(registered_couch)
+                        fid = open(out_table_vert, 'w+')
+                        fid.write(str(isocenter))
+                        fid.close()
     fid = open(status_file, 'w+')
     fid.close()
     return None
 
 
 def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.Image,
-             erode_filter: sitk.BinaryErodeImageFilter):
+             erode_filter: sitk.BinaryErodeImageFilter, couch_start: int):
     """
     :param cbct_handle:
     :param ct_handle:
@@ -329,13 +341,11 @@ def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.I
     cbct_array = sitk.GetArrayFromImage(cbct_handle)
     cbct_s = cbct_array.shape
     spacing = cbct_handle.GetSpacing()
-    couch_stop = cbct_array[cbct_s[0]//2, :, cbct_s[-1]//2]
-    couch_stop = np.where(couch_stop > -800)[0][-1] + int(5 * spacing[1])  # Give a little bit of wiggle room
-    couch_start = couch_stop - int(55 * spacing[1])
+    couch_stop = couch_start + int(50 * spacing[1])
     ct_array[:, couch_stop:, :] = -1000
     cbct_array[:, couch_stop:, :] = -1000
-    ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0] // 2, couch_start:couch_stop, cbct_s[-1] // 2][None, ..., None]
-    cbct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0] // 2, couch_start:couch_stop, cbct_s[-1] // 2][None, ..., None]
+    ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0]//2, couch_start:couch_stop, cbct_s[-1]//2][None, ..., None]
+    cbct_array[:, couch_start:couch_stop, :] = cbct_array[:, couch_start:couch_stop, cbct_s[-1]//2][..., None]
     binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
     eroded_meta = erode_filter.Execute(binary_meta)
     eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
@@ -364,10 +374,14 @@ def create_padded_cbcts(patient_path, rewrite=False):
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
         out_file = CBCT_File.replace("Registered_CBCT", "Padded_CBCT")
+        table_file = CBCT_File.replace("Registered_", "TableHeight_").replace(".mha", ".txt")
         meta_file = CBCT_File.replace("CBCT", "Meta")
         registered_handle = sitk.ReadImage(CBCT_File)
         meta_handle = sitk.ReadImage(meta_file)
-        padded_cbct = pad_cbct(meta_handle, registered_handle, CT_handle, erode_filter)
+        fid = open(table_file)
+        table_vert = int(fid.readline().split(', ')[1])
+        fid.close()
+        padded_cbct = pad_cbct(meta_handle, registered_handle, CT_handle, erode_filter, couch_start=table_vert)
         sitk.WriteImage(padded_cbct, out_file)
     fid = open(status_file, 'w+')
     fid.close()
@@ -519,6 +533,10 @@ def create_transmission(patient_path, rewrite):
     for cbct in padded_cbct:
         date_dictionary[cbct.split("_")[-1].split('.')[0]] = cbct
     plan_dictionary = return_plan_dictionary(patient_path)
+    if rewrite:
+        pdos_files = glob(os.path.join(patient_path, "Niftiis", "PDOS_*"))
+        for pdos_file in pdos_files:
+            os.remove(pdos_file)
     for file in dicom_files:
         fluence_reader.set_file(file)
         image_type = fluence_reader.return_image_info()
@@ -560,6 +578,15 @@ def create_transmission(patient_path, rewrite):
                 fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
                 if os.path.exists(out_file):
                     continue
+        """
+        Now shift the origin
+        """
+        spacing = fluence_reader.dicom_handle.GetSpacing()
+        size = fluence_reader.dicom_handle.GetSize()
+        origin = [i for i in fluence_reader.dicom_handle.GetOrigin()]
+        origin[0] -= spacing[0] * (size[0] - 1)/2
+        origin[1] -= spacing[1] * (size[1] - 1)/2
+        fluence_reader.dicom_handle.SetOrigin(origin)
         sitk.WriteImage(fluence_reader.dicom_handle, out_file)
     return None
 
@@ -575,13 +602,12 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     if os.path.exists(skip) and not rewrite:
         return None
     # create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    # create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     if patient_path.find('phantom') != -1:
         update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-    # create_transmission(patient_path=patient_path, rewrite=rewrite)
-    createDRRs(patient_path=patient_path, rewrite=rewrite)
-    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
-    shift_panel_origin(patient_path=patient_path)
+    # createDRRs(patient_path=patient_path, rewrite=rewrite)
+    # createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
     return None
