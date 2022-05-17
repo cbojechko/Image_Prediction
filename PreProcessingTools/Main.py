@@ -64,7 +64,7 @@ def write_itk_file(output_path, itk_file):
 
 
 def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path.join('.', 'Output.mha'),
-               translations=(0, 0, 0), half_proj=False):
+               translations=(0, 0, 0), distance_from_iso=None):
     """
     :param sitk_handle: handle from SimpleITK, usually from DICOMRTTool
     :param sid: source to iso-center distance, in mm
@@ -110,8 +110,9 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     """
     If a half projection, just delete everything beneath the half-way point, as we're centered on iso
     """
-    if half_proj:
-        transformed_image[:, int(imSize[1]/2):, :] = -1000
+    if distance_from_iso is not None:
+        new_spot = sitk_handle.TransformPhysicalPointToIndex((0, distance_from_iso, 0))
+        transformed_image[:, int(new_spot[1]):, :] = -1000
     output_origin = [transformed_image.GetOrigin()[i] for i in range(3)]
     output_origin[2] = -spd
     final_filter.SetInput(transformed_image)
@@ -464,7 +465,7 @@ def createHalfDRRs(patient_path, rewrite):
                 continue
             cbct_handle = sitk.ReadImage(padded_cbct_file)
             create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                       out_path=out_file, translations=[i for i in iso_center], half_proj=True)
+                       out_path=out_file, translations=[i for i in iso_center], distance_from_iso=0)
     return None
 
 
@@ -603,11 +604,11 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
         return None
     # create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
     # create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
-    if patient_path.find('phantom') != -1:
-        update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
+    # if patient_path.find('phantom') != -1:
+    #     update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     # createDRRs(patient_path=patient_path, rewrite=rewrite)
-    # createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
-    create_transmission(patient_path=patient_path, rewrite=rewrite)
+    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    # create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
     return None
