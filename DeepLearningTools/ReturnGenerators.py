@@ -38,6 +38,20 @@ def create_files_for_streamline(records_path):
         processors = [
             CProcessors.Squeeze(image_keys=all_keys),
             CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+            CProcessors.Squeeze(image_keys=all_keys),
+            CProcessors.ExpandDimension(axis=-1,
+                                        image_keys=('pdos_array',
+                                                    'drr_array',
+                                                    'half_drr_array',
+                                                    'fluence_array')),
+            CProcessors.MultiplyImagesByConstant(keys=('drr_array',
+                                                       'half_drr_array'),
+                                                 values=(1 / 325,
+                                                         1 / 325)),
+            CProcessors.MultiplyImagesByConstant(keys=('pdos_array',
+                                                           'fluence_array'),
+                                                     values=(1 / 3.448,
+                                                             1 / 2.226)),
             CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
                                     output_key='combined'),
             CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
@@ -50,12 +64,12 @@ def create_files_for_streamline(records_path):
             numpy_array = x[0].numpy()
             file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
             print(file_info)
-            if file_info.split('_')[0] == '10':
+            if file_info.split('_')[0] == '12':
                 xxx = 1
-            numpy_array[..., 0] /= np.max(numpy_array[..., 0])
-            numpy_array[..., 1] /= np.max(numpy_array[..., 1])
-            numpy_array[..., 2] /= np.max(numpy_array[..., 2])
-            numpy_array[..., 3] /= np.max(numpy_array[..., 3])
+            # numpy_array[..., 0] /= np.max(numpy_array[..., 0])
+            # numpy_array[..., 1] /= np.max(numpy_array[..., 1])
+            # numpy_array[..., 2] /= np.max(numpy_array[..., 2])
+            # numpy_array[..., 3] /= np.max(numpy_array[..., 3])
             numpy_array *= 255
             np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
             max_val = np.max(numpy_array[...,-1])
