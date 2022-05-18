@@ -26,7 +26,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
     else:
         df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='folds')
     rewrite_excel = False
-    for patient_data in ['phantom', 'PatientData2']:
+    for patient_data in ['phantom']: #, 'PatientData2'
         base_patient_path = os.path.join(base_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         for patient_MRN in MRN_list:
@@ -48,7 +48,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
                 df = df.append(pd.DataFrame({patient_id_column: [patient_MRN], 'Index': [i]}))
             else:
                 i = int(previous_run['Index'].values[0])
-            # if i != 12:
+            # if i != 50:
             #     continue
             print(patient_MRN)
             path = os.path.join(base_patient_path, patient_MRN, 'Niftiis')
@@ -58,22 +58,26 @@ def return_dictionary_list(base_path, out_path, rewrite):
                 """
                 Next, find the fluence files with the same angle used
                 """
-                fluence_files = glob(os.path.join(path, "Fluence_{}_*".format(angle)))
+                fluence_files = glob(os.path.join(path, f"Fluence_{angle}_*"))
                 for fluence_file in fluence_files:
                     date = fluence_file.split('_')[-1].split('.')[0]
-                    addition = "{}_{}".format(angle, date)
-                    half_proj_file = os.path.join(path, "HalfProj_{}.mha".format(addition))
-                    full_drr_file = os.path.join(path, "DRR_{}.mha".format(addition))
+                    addition = f"{angle}_{date}"
+                    iso_proj_file = os.path.join(path, f"Proj_0cm_to_iso_{addition}.mha")
+                    deep_proj_file = os.path.join(path, f"Proj_5cm_to_iso_{addition}.mha")
+                    shallow_proj_file = os.path.join(path, f"Proj_-5cm_to_iso_{addition}.mha")
+                    full_drr_file = os.path.join(path, f"DRR_{addition}.mha")
                     examples_exist = [os.path.exists(os.path.join(out_path, "{}_{}_{}_{}.tfrecord".format(i,
                                                                                                           angle, date,
                                                                                                           _)))
                                       for _ in range(5)]
                     if max(examples_exist) and not rewrite:  # If we have the record, move on
                         continue
-                    if os.path.exists(full_drr_file) and os.path.exists(half_proj_file):
+                    if os.path.exists(full_drr_file) and os.path.exists(iso_proj_file):
                         patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
-                                        'half_drr_path': half_proj_file, 'full_drr_path': full_drr_file,
-                                        'out_file_name': "{}_{}_{}.tfrecord".format(i, angle, date)}
+                                        '-5cm_drr_path': shallow_proj_file,
+                                        '5cm_drr_path': deep_proj_file,
+                                        'iso_drr_path': iso_proj_file, 'full_drr_path': full_drr_file,
+                                        'out_file_name': f"{i}_{angle}_{date}.tfrecord"}
                         output_list.append(patient_dict)
     if rewrite_excel:
         df.to_excel(excel_path, index=0)
@@ -81,14 +85,16 @@ def return_dictionary_list(base_path, out_path, rewrite):
 
 
 def make_train_records(base_path, rewrite=False):
-    out_path = os.path.join(base_path, 'TFRecords', 'TrainNoNormalization')
+    out_path = os.path.join(base_path, 'TFRecords', 'TrainNoNormalizationMultipleProj')
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
     train_list = return_dictionary_list(base_path, out_path, rewrite)
     if not train_list:
         print("No new files found for record making")
         return None
     record_writer = RecordWriter.RecordWriter(out_path=out_path,
                                               file_name_key='out_file_name', rewrite=rewrite)
-    keys = ('pdos_handle', 'fluence_handle', 'half_drr_handle', 'drr_handle')
+    keys = ('pdos_handle', 'fluence_handle', 'drr_handle', '-5cm_handle', 'iso_handle', '5cm_handle')
     array_keys = tuple(i.replace('_handle', '_array') for i in keys)
     """
     Load all of the files into SITK handles
@@ -97,7 +103,8 @@ def make_train_records(base_path, rewrite=False):
     """
     spacing = 1.68
     train_processors = [
-        Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'half_drr_path', 'full_drr_path'),
+        Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'full_drr_path', '-5cm_drr_path',
+                                              'iso_drr_path', '5cm_drr_path'),
                              out_keys=keys),
         Processors.ResampleSITKHandles(desired_output_spacing=(spacing, spacing, 1.0), resample_keys=('fluence_handle',),
                                        resample_interpolators=['Linear',]),
