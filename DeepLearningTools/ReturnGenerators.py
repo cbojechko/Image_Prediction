@@ -28,32 +28,24 @@ def get_mean_std(train_generator):
 
 def create_files_for_streamline(records_path):
     out_path_numpy = os.path.join(records_path, 'NumpyFiles')
-    out_path_jpeg = os.path.join(records_path, 'JpegsNoNormalization')
+    out_path_jpeg = os.path.join(records_path, 'JpegsNoNormalizationNew')
     for fold in [0]:
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
         if fold == 0:
-            train_path = os.path.join(records_path, 'TrainNoNormalization')
+            train_path = os.path.join(records_path, 'TrainNoNormalizationNew')
         train_generator = DataGeneratorClass(record_paths=[train_path])
-        all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
+        all_keys = ('pdos_array', 'fluence_array', '-5cm_array', 'iso_array', '5cm_array', 'drr_array')
         processors = [
             CProcessors.Squeeze(image_keys=all_keys),
-            CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
+            CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
             CProcessors.Squeeze(image_keys=all_keys),
             CProcessors.ExpandDimension(axis=-1,
-                                        image_keys=('pdos_array',
-                                                    'drr_array',
-                                                    'half_drr_array',
-                                                    'fluence_array')),
-            CProcessors.MultiplyImagesByConstant(keys=('drr_array',
-                                                       'half_drr_array'),
-                                                 values=(1 / 325,
-                                                         1 / 325)),
-            CProcessors.MultiplyImagesByConstant(keys=('pdos_array',
-                                                           'fluence_array'),
-                                                     values=(1 / 3.448,
-                                                             1 / 2.226)),
-            CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array'),
-                                    output_key='combined'),
+                                        image_keys=all_keys),
+            CProcessors.MultiplyImagesByConstant(keys=('drr_array', 'iso_array', '-5cm_array', '5cm_array'),
+                                                 values=(1 / 325, 1 / 325, 1/325, 1/325)),
+            CProcessors.MultiplyImagesByConstant(keys=('pdos_array', 'fluence_array'),
+                                                 values=(1 / 3.448, 1 / 2.226)),
+            CProcessors.CombineKeys(axis=-1, image_keys=all_keys, output_key='combined'),
             CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
             {'batch': 1}, {'repeat'}
         ]
@@ -76,8 +68,8 @@ def create_files_for_streamline(records_path):
 
             if max_val < 20:
                 print("{} max is {}".format(file_info, max_val))
-            out_array = np.zeros((256, 256 * 4))
-            for i in range(4):
+            out_array = np.zeros((256, 256 * numpy_array.shape[-1]))
+            for i in range(numpy_array.shape[-1]):
                 out_array[..., 256 * i:256 * (i + 1)] = numpy_array[..., i]
             image = Image.fromarray(out_array.astype('uint8'))
             image.save(os.path.join(out_path_jpeg, "{}.jpeg".format(file_info)))
