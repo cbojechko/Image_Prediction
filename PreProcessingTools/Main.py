@@ -449,13 +449,13 @@ def createDRRs(patient_path, rewrite):
                 if cbct_handle is None:
                     cbct_handle = sitk.ReadImage(padded_cbct_file)
                 create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=5)
+                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=50)
             out_file = padded_cbct_file.replace("Padded_CBCT", "HalfProj+-cm_G{}".format(gantry_angle))
             if not os.path.exists(out_file) or rewrite:
                 if cbct_handle is None:
                     cbct_handle = sitk.ReadImage(padded_cbct_file)
                 create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=-5)
+                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=-50)
             out_file = padded_cbct_file.replace("Padded_CBCT", "DRR_G{}".format(gantry_angle))
 
             if not os.path.exists(out_file) or rewrite:
@@ -471,21 +471,6 @@ def createDRRs(patient_path, rewrite):
                            out_path=out_file, translations=[i for i in iso_center], distance_from_iso=0)
 
 
-    return None
-
-
-def createHalfDRRs(patient_path, rewrite):
-    plan_dictionary = return_plan_dictionary(patient_path)
-    padded_cbcts = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT*"))
-    for padded_cbct_file in padded_cbcts:
-        for beam_number in plan_dictionary:
-            beam = plan_dictionary[beam_number]
-            gantry_angle = beam["Gantry"]
-            iso_center = beam["Iso"]
-            out_file = padded_cbct_file.replace("Padded_CBCT", "HalfProj_G{}".format(gantry_angle))
-            cbct_handle = sitk.ReadImage(padded_cbct_file)
-            create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                       out_path=out_file, translations=[i for i in iso_center], distance_from_iso=0)
     return None
 
 
@@ -626,8 +611,7 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     # create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     # if patient_path.find('phantom') != -1:
     #     update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-    # createDRRs(patient_path=patient_path, rewrite=rewrite)
-    createHalfDRRs(patient_path=patient_path, rewrite=rewrite)
+    createDRRs(patient_path=patient_path, rewrite=rewrite)
     # create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
