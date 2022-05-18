@@ -444,33 +444,18 @@ def createDRRs(patient_path, rewrite):
             gantry_angle = beam["Gantry"]
             iso_center = beam["Iso"]
             cbct_handle = None
-            out_file = padded_cbct_file.replace("Padded_CBCT", "HalfProj+5cm_G{}".format(gantry_angle))
+            out_file = padded_cbct_file.replace("Padded_CBCT", f"DRR_G{gantry_angle}")
             if not os.path.exists(out_file) or rewrite:
-                if cbct_handle is None:
-                    cbct_handle = sitk.ReadImage(padded_cbct_file)
+                cbct_handle = sitk.ReadImage(padded_cbct_file)
                 create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=50)
-            out_file = padded_cbct_file.replace("Padded_CBCT", "HalfProj+-cm_G{}".format(gantry_angle))
-            if not os.path.exists(out_file) or rewrite:
-                if cbct_handle is None:
-                    cbct_handle = sitk.ReadImage(padded_cbct_file)
-                create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=-50)
-            out_file = padded_cbct_file.replace("Padded_CBCT", "DRR_G{}".format(gantry_angle))
-
-            if not os.path.exists(out_file) or rewrite:
-                if cbct_handle is None:
-                    cbct_handle = sitk.ReadImage(padded_cbct_file)
-                create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                           out_path=out_file, translations=[i for i in iso_center])
-            out_file = padded_cbct_file.replace("Padded_CBCT", "HalfProj_G{}".format(gantry_angle))
-            if not os.path.exists(out_file) or rewrite:
-                if cbct_handle is None:
-                    cbct_handle = sitk.ReadImage(padded_cbct_file)
-                create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
-                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=0)
-
-
+                           out_path=out_file, translations=[i for i in iso_center], distance_from_iso=None)
+            for height in [-50, 0, 50]:
+                out_file = padded_cbct_file.replace("Padded_CBCT", f"Proj_{height//10}cm_to_iso_G{gantry_angle}")
+                if not os.path.exists(out_file) or rewrite:
+                    if cbct_handle is None:
+                        cbct_handle = sitk.ReadImage(padded_cbct_file)
+                    create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
+                               out_path=out_file, translations=[i for i in iso_center], distance_from_iso=height)
     return None
 
 
