@@ -32,9 +32,10 @@ def create_files_for_streamline(records_path):
     for fold in [0]:
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
         if fold == 0:
-            train_path = os.path.join(records_path, 'TrainNoNormalizationNew')
+            train_path = os.path.join(records_path, 'TrainNoNormalizationMultipleProj')
         train_generator = DataGeneratorClass(record_paths=[train_path])
         all_keys = ('pdos_array', 'fluence_array', '-5cm_array', 'iso_array', '5cm_array', 'drr_array')
+        # ['pdos_array', 'drr_array', 'iso_array', '-5cm_array', '5cm_array']
         processors = [
             CProcessors.Squeeze(image_keys=all_keys),
             CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
