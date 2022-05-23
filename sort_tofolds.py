@@ -13,7 +13,7 @@ def sorttofolds(path):
 
     fold1_idx = [0, 6, 7, 8, 10, 11, 12, 13, 15, 16]
     fold2_idx = [1, 9, 14, 17, 20, 21, 22,23,24,25]
-    fold3_idx = [2, 18, 26, 27, 28, 31, 32, 33, 35 ,44]
+    fold3_idx = [2, 18, 26, 28, 31, 32, 33, 35 ,44] # Remove 27, artifact present
     fold4_idx = [3, 19, 29, 36, 37, 38, 39, 40, 45, 48]
     fold5_idx = [4, 5, 30, 34, 41, 42, 43, 46, 47, 49] # remove 50? poor image quality 47 is feet first knee
     for idx1 in fold1_idx:
