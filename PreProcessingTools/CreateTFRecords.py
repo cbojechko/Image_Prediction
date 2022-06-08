@@ -48,7 +48,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
                 df = df.append(pd.DataFrame({patient_id_column: [patient_MRN], 'Index': [i]}))
             else:
                 i = int(previous_run['Index'].values[0])
-            # if i != 50:
+            # if i != 52:
             #     continue
             print(patient_MRN)
             path = os.path.join(base_patient_path, patient_MRN, 'Niftiis')
@@ -74,8 +74,8 @@ def return_dictionary_list(base_path, out_path, rewrite):
                         continue
                     if os.path.exists(full_drr_file) and os.path.exists(iso_proj_file):
                         patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
-                                        '-5cm_drr_path': shallow_proj_file,
-                                        '5cm_drr_path': deep_proj_file,
+                                        '5cm_shallow_path': shallow_proj_file,
+                                        '5cm_deep_path': deep_proj_file,
                                         'iso_drr_path': iso_proj_file, 'full_drr_path': full_drr_file,
                                         'out_file_name': f"{i}_{angle}_{date}.tfrecord"}
                         output_list.append(patient_dict)
@@ -94,7 +94,7 @@ def make_train_records(base_path, rewrite=False):
         return None
     record_writer = RecordWriter.RecordWriter(out_path=out_path,
                                               file_name_key='out_file_name', rewrite=rewrite)
-    keys = ('pdos_handle', 'fluence_handle', 'drr_handle', '-5cm_handle', 'iso_handle', '5cm_handle')
+    keys = ('pdos_handle', 'fluence_handle', 'drr_handle', '5cm_deep_handle', 'iso_handle', '5cm_shallow_handle')
     array_keys = tuple(i.replace('_handle', '_array') for i in keys)
     """
     Load all of the files into SITK handles
@@ -103,8 +103,8 @@ def make_train_records(base_path, rewrite=False):
     """
     spacing = 1.68
     train_processors = [
-        Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'full_drr_path', '-5cm_drr_path',
-                                              'iso_drr_path', '5cm_drr_path'),
+        Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'full_drr_path', '5cm_deep_path',
+                                              'iso_drr_path', '5cm_shallow_path'),
                              out_keys=keys),
         Processors.ResampleSITKHandles(desired_output_spacing=(spacing, spacing, 1.0), resample_keys=('fluence_handle',),
                                        resample_interpolators=['Linear',]),
