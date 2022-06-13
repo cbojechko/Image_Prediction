@@ -48,8 +48,8 @@ def return_dictionary_list(base_path, out_path, rewrite):
                 df = df.append(pd.DataFrame({patient_id_column: [patient_MRN], 'Index': [i]}))
             else:
                 i = int(previous_run['Index'].values[0])
-            if i != 50:
-                continue
+            # if i != 50:
+            #     continue
             print(patient_MRN)
             path = os.path.join(base_patient_path, patient_MRN, 'Niftiis')
             pdos_files = glob(os.path.join(path, 'PDOS_G*'))
@@ -65,9 +65,9 @@ def return_dictionary_list(base_path, out_path, rewrite):
                     iso_proj_file = os.path.join(path, f"Proj_0cm_to_iso_{addition}.mha")
                     deep_proj_file = os.path.join(path, f"Proj_5cm_to_iso_{addition}.mha")
                     shallow_proj_file = os.path.join(path, f"Proj_-5cm_to_iso_{addition}.mha")
-                    deep_proj_to_panel_file = os.path.join(path, f"Proj_5cm_from_iso_to_panel_G{addition}.mha")
-                    iso_proj_to_panel_file = os.path.join(path, f"Proj_0cm_from_iso_to_panel_G{addition}.mha")
-                    shallow_proj_to_panel_file = os.path.join(path, f"Proj_-5cm_from_iso_to_panel_G{addition}.mha")
+                    deep_proj_to_panel_file = os.path.join(path, f"Proj_5cm_from_iso_to_panel_{addition}.mha")
+                    iso_proj_to_panel_file = os.path.join(path, f"Proj_0cm_from_iso_to_panel_{addition}.mha")
+                    shallow_proj_to_panel_file = os.path.join(path, f"Proj_-5cm_from_iso_to_panel_{addition}.mha")
                     full_drr_file = os.path.join(path, f"DRR_{addition}.mha")
                     examples_exist = [os.path.exists(os.path.join(out_path, "{}_{}_{}_{}.tfrecord".format(i,
                                                                                                           angle, date,

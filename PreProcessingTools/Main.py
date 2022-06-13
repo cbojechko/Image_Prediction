@@ -454,6 +454,12 @@ def createDRRs(patient_path, rewrite):
                 if not os.path.exists(out_file) or rewrite:
                     if cbct_handle is None:
                         cbct_handle = sitk.ReadImage(padded_cbct_file)
+                    create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1000+height,
+                               out_path=out_file, translations=[i for i in iso_center], distance_from_iso=height)
+                out_file = padded_cbct_file.replace("Padded_CBCT", f"Proj_{height//10}cm_from_iso_to_panel_G{gantry_angle}")
+                if not os.path.exists(out_file) or rewrite:
+                    if cbct_handle is None:
+                        cbct_handle = sitk.ReadImage(padded_cbct_file)
                     create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
                                out_path=out_file, translations=[i for i in iso_center], distance_from_iso=height)
     return None
