@@ -26,43 +26,96 @@ def get_mean_std(train_generator):
     return None
 
 
+def return_generator(records_path, cache, batch=1):
+    global_norm = True
+    add_5cm_keys = True
+    generator = DataGeneratorClass(record_paths=records_path, delete_old_cache=True)
+    all_keys = ('pdos_array', 'fluence_array','drr_array', '5cm_deep_array', 'iso_array', '5cm_shallow_array')
+    drr_keys = ('drr_array', '5cm_deep_array', 'iso_array', '5cm_shallow_array', )
+    normalize_keys = ('iso_array',)
+    input_keys = ('pdos_array', 'drr_array', 'iso_array')
+    if add_5cm_keys:
+        input_keys = ('pdos_array', 'drr_array', '5cm_deep_array', 'iso_array', '5cm_shallow_array')
+        normalize_keys = ('5cm_deep_array', 'iso_array', '5cm_shallow_array')
+    print(f"Inputs are {input_keys}")
+    base_processors = [
+                     CProcessors.Squeeze(image_keys=all_keys),
+                     CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
+                     CProcessors.MultiplyImagesByConstant(keys=drr_keys,
+                                                          values=(1/90, 1/90, 1/90, 1/90)),
+                     ]
+    if global_norm:
+        base_processors += [
+                            CProcessors.MultiplyImagesByConstant(keys=('pdos_array',
+                                                                    'fluence_array'),
+                                                                 values=(1, 1)) #(1/2, 1/(.3876*2))
+                            ]
+    else:
+        base_processors += [
+                            RProcessors.NormalizeBasedOnOther(guiding_keys=('pdos_array', 'pdos_array'),
+                                                              changing_keys=('fluence_array', 'pdos_array'),
+                                                              reference_method=('reduce_max', 'reduce_max'),
+                                                              changing_methods=('divide', 'divide'))
+                            ]
+    base_processors += [
+                      CProcessors.CombineKeys(axis=-1,
+                                              image_keys=input_keys,
+                                              output_key='test'),
+                      CProcessors.ReturnOutputs(input_keys=('test',),
+                                                output_keys=('fluence_array',))
+    ]
+    base_processors += [
+                      #{'cache': train_cache},
+                      {'batch': batch}, {'repeat'}
+                      ]
+    generator.compile_data_set(image_processors=base_processors, debug=False)
+    return generator
+
+
 def create_files_for_streamline(records_path):
     out_path_numpy = os.path.join(records_path, 'NumpyFiles')
     out_path_jpeg = os.path.join(records_path, 'JpegsNoNormalizationMultipleProj')
     for fold in [0]:
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
+        record_paths = [train_path]
         if fold == 0:
             train_path = os.path.join(records_path, 'TrainNoNormalizationMultipleProj')
-        train_generator = DataGeneratorClass(record_paths=[train_path])
-        all_keys = ('pdos_array', 'fluence_array', '-5cm_array', 'iso_array', '5cm_array', 'drr_array')
+            record_paths = [os.path.join(train_path, 'phantom_valid'), os.path.join(train_path, 'phantom_train')]
+        # record_paths = [train_path]
+        train_generator = DataGeneratorClass(record_paths=record_paths)
+        all_keys = ('pdos_array', 'fluence_array', 'drr_array', '5cm_deep_array', 'iso_array', '5cm_shallow_array',
+                    'deep_to_panel_array', 'iso_to_panel_array', 'shallow_to_panel_array')
         # ['pdos_array', 'drr_array', 'iso_array', '-5cm_array', '5cm_array']
         processors = [
             CProcessors.Squeeze(image_keys=all_keys),
-            CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
-            CProcessors.Squeeze(image_keys=all_keys),
-            CProcessors.ExpandDimension(axis=-1,
-                                        image_keys=all_keys),
-            CProcessors.MultiplyImagesByConstant(keys=('drr_array', 'iso_array', '-5cm_array', '5cm_array'),
-                                                 values=(1 / 325, 1 / 325, 1/325, 1/325)),
+            CProcessors.MultiplyImagesByConstant(keys=('drr_array', 'iso_array', '5cm_deep_array', '5cm_shallow_array'),
+                                                 values=(1/1, 1/1, 1/1, 1/1)),#(1 / 325, 1 / 325, 1/325, 1/325)
             CProcessors.MultiplyImagesByConstant(keys=('pdos_array', 'fluence_array'),
-                                                 values=(1 / 3.448, 1 / 2.226)),
+                                                 values=(1, 1)),#(1 / 3.448, 1 / 2.226)
+            CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
             CProcessors.CombineKeys(axis=-1, image_keys=all_keys, output_key='combined'),
             CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
             {'batch': 1}, {'repeat'}
         ]
-        train_generator.compile_data_set(image_processors=processors, debug=False)
+        train_generator.compile_data_set(image_processors=processors, debug=True)
         iterator = iter(train_generator.data_set)
+        ratios = []
+        # for i in range(len(train_generator)):
+        #     x, y = next(iterator)
+        #     ratio = x[0][0, 125, 125, 2] / x[0][0, 125, 125, 3]
+        #     ratios.append(ratio)
+        #     if ratio < 1:
+        #         xxx = 1
         for i in range(len(train_generator)):
             x, y = next(iterator)
+            #output, resized_pdos = generator.predict(x)
             numpy_array = x[0].numpy()
             file_info = str(y[0][0]).split('b')[-1][1:].split('.tf')[0]
             print(file_info)
             if file_info.split('_')[0] == '12':
                 xxx = 1
-            # numpy_array[..., 0] /= np.max(numpy_array[..., 0])
-            # numpy_array[..., 1] /= np.max(numpy_array[..., 1])
-            # numpy_array[..., 2] /= np.max(numpy_array[..., 2])
-            # numpy_array[..., 3] /= np.max(numpy_array[..., 3])
+            for i in range(numpy_array.shape[-1]):
+                numpy_array[..., i] /= np.max(numpy_array[..., i])
             numpy_array *= 255
             np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
             max_val = np.max(numpy_array[...,-1])
@@ -75,6 +128,61 @@ def create_files_for_streamline(records_path):
             image = Image.fromarray(out_array.astype('uint8'))
             image.save(os.path.join(out_path_jpeg, "{}.jpeg".format(file_info)))
     return None
+
+
+def convlayerBMA(x, filters, size, apply_batchnorm=True):
+    x = tf.keras.layers.Conv2D(filters, size, strides=1, padding='same', use_bias=True)(x)
+    if apply_batchnorm:
+        x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.LeakyReLU()(x)
+    return x
+
+
+def resize_tensor(x, wanted_distance=1000, acquired_distance=1540):
+    output_size = int(x.shape[1]//2*wanted_distance/acquired_distance*2)
+    current_size = x.shape[1]
+    x = tf.image.resize(x, [output_size, output_size])
+    if wanted_distance < acquired_distance:
+        x = tf.image.pad_to_bounding_box(x, (current_size - output_size) // 2,
+                                         (current_size - output_size) // 2, current_size, current_size)
+    else:
+        x = x[:, (output_size-current_size)//2:-(output_size-current_size)//2,
+            (output_size-current_size)//2:-(output_size-current_size)//2]
+    return x
+
+
+def GeneratorBMA2(top_layers=2, size=4, filters_start=64):
+    """
+    default values creates the original generator, filters double from start
+    to a max after the number of 'double layers'
+    Size is the kernel size
+    Layers is the number of layers
+    """
+    """
+    Back to basic physics
+    """
+    inputs = x = tf.keras.layers.Input(shape=[256, 256, 6])
+    PDOS = tf.expand_dims(inputs[..., 0], axis=-1, name='PDOS')
+    Fluence = tf.expand_dims(inputs[..., 1], axis=-1, name='PDOS')
+    fulldrr = tf.expand_dims(inputs[..., 2], axis=-1)
+    drr_deep = tf.expand_dims(inputs[..., 3], axis=-1)
+    iso_drr = tf.expand_dims(inputs[..., 4], axis=-1)
+    drr_shallow = tf.expand_dims(inputs[..., 5], axis=-1)
+
+    drr_deep_to_iso = resize_tensor(drr_deep, wanted_distance=1000, acquired_distance=1050)
+    drr_dif = drr_deep_to_iso - iso_drr
+    drr_dif = tf.keras.layers.ReLU()(drr_dif)
+    exp_shallow = tf.math.exp(-convlayerBMA(drr_shallow, 1, size, apply_batchnorm=False)) * PDOS * (1540**2/950**2)
+    exp_iso = tf.math.exp(-convlayerBMA(iso_drr - drr_shallow, 1, size, apply_batchnorm=False)) * PDOS * (950**2/1000**2)
+    exp_deeper = tf.math.exp(-convlayerBMA(drr_deep - iso_drr, 1, size, apply_batchnorm=False)) * PDOS * (1000**2 / 1050**2)
+    exp_full = tf.math.exp(-convlayerBMA(fulldrr - drr_deep, 1, size, apply_batchnorm=False)) * PDOS * (1050**2 / 1540**2)
+
+    x = tf.keras.layers.Concatenate()([exp_shallow, exp_iso, exp_deeper, exp_full])
+    x = convlayerBMA(x, filters_start, size, apply_batchnorm=True)
+    for _ in range(top_layers):
+        x = convlayerBMA(x, filters_start, size, apply_batchnorm=True)
+    x = tf.keras.layers.Conv2D(filters=1, kernel_size=1, activation=None, padding='same', use_bias=True)(x)
+    return tf.keras.Model(inputs=inputs, outputs=(x,drr_dif))
 
 
 def build_cache(generator):
