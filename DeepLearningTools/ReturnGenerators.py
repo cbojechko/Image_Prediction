@@ -25,7 +25,7 @@ def get_mean_std(train_generator):
     return None
 
 
-def return_generator(records_path, batch=1, proj_to_panel=True, add_5cm_keys=True):
+def return_generator(records_path, proj_to_panel=True, add_5cm_keys=True, **kwargs):
     generator = DataGeneratorClass(record_paths=records_path, delete_old_cache=True)
     all_keys = ('pdos_array', 'fluence_array','drr_array', 'deep_to_panel_array', 'iso_to_panel_array', 'shallow_to_panel_array')
     drr_keys = ('drr_array', 'deep_to_panel_array', 'iso_to_panel_array', 'shallow_to_panel_array', )
@@ -46,7 +46,7 @@ def return_generator(records_path, batch=1, proj_to_panel=True, add_5cm_keys=Tru
                                 output_key='test'),
         CProcessors.ReturnOutputs(input_keys=('test',),
                                   output_keys=('fluence_array',)),
-        {'batch': batch}, {'repeat'}
+        {'batch': 1}, {'repeat'}
     ]
     generator.compile_data_set(image_processors=base_processors, debug=False)
     return generator
@@ -59,40 +59,27 @@ def build_cache(generator):
     return None
 
 
-def return_generators(records_path):
-    train_path = os.path.join(records_path, 'Train', 'fold1')
-    validation_path = os.path.join(records_path, 'Train', 'fold2')
-    train_generator = DataGeneratorClass(record_paths=[train_path])
-    validation_generator = DataGeneratorClass(record_paths=[validation_path])
-    all_keys = ('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')
-    base_processors = [
-        CProcessors.Squeeze(image_keys=all_keys),
-        CProcessors.ExpandDimension(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array', 'fluence_array')),
-        CProcessors.Resize_with_crop_pad(keys=all_keys, image_rows=[256 for _ in range(len(all_keys))],
-                                        image_cols=[256 for _ in range(len(all_keys))],
-                                        is_mask=[False for _ in range(len(all_keys))]),
-        CProcessors.MultiplyImagesByConstant(all_keys, values=(2/255, 2/255, 2/255, 1/255)), # Scale to be 0-2, and 0-1
-        CProcessors.Add_Constant(all_keys, values=(-1, -1, -1, 0)), # Slide -1-1, and 0-1
-        CProcessors.CombineKeys(axis=-1, image_keys=('pdos_array', 'drr_array', 'half_drr_array'),
-                               output_key='combined'),
-        CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('fluence_array',))
-        ]
-    train_processors = [
-        # {'cache': train_path},
-        {'shuffle': len(train_generator) // 3},
-        {'batch': 1}, {'repeat'}
-    ]
-    validation_processors = [
-        # {'cache': validation_path},
-        {'batch': 1}, {'repeat'}
-    ]
-    train_generator.compile_data_set(image_processors=base_processors + train_processors, debug=False)
-    validation_generator.compile_data_set(image_processors=base_processors + validation_processors, debug=False)
-    if not os.path.exists(os.path.join(train_path, 'cache.tfrecord.index')):
-        build_cache(train_generator)
-    if not os.path.exists(os.path.join(validation_path, 'cache.tfrecord.index')):
-        build_cache(validation_generator)
-    return train_generator, validation_generator
+def return_dataset(generator, batch, **kwargs):
+    input_values = []
+    output_values = []
+    iterator = iter(generator.data_set)
+    for _ in range(len(generator)):
+        x, y = next(iterator)
+        input_values.append(x[0][0])
+        output_values.append(y[0][0])
+    input_dataset = tf.data.Dataset.from_tensor_slices(input_values)
+    output_dataset = tf.data.Dataset.from_tensor_slices(output_values)
+    dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
+    dataset = dataset.shuffle(len(dataset)//3).batch(batch)
+    return dataset
+
+
+def return_generators(base_path, **kwargs):
+    train_folder_names = [os.path.join(base_path, 'phantom_train')]
+    val_folder_names = [os.path.join(base_path, 'phantom_valid')]
+    train_gen = return_dataset(return_generator(train_folder_names, **kwargs), **kwargs)
+    valid_gen = return_dataset(return_generator(val_folder_names, **kwargs), batch=1)
+    return train_gen, valid_gen
 
 
 def load_data_from_generator(generator):

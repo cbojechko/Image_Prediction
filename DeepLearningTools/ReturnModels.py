@@ -80,7 +80,8 @@ def resize_tensor(x, wanted_distance=1000, acquired_distance=1540):
     return x
 
 
-def GeneratorBMA2(top_layers=2, size=4, layers=7, filters_start=64, double_layers=4, add_unet=False, max_filters=64):
+def GeneratorBMA2(top_layers=2, size=4, layers=7, filters_start=64, double_layers=4, add_unet=False, max_filters=64,
+                  **kwargs):
     """
     default values creates the original generator, filters double from start
     to a max after the number of 'double layers'

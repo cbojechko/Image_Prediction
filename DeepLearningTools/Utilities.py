@@ -4,7 +4,6 @@ from DeepLearningTools.Data_Generators.TFRecord_to_Dataset_Generator import Data
 from DeepLearningTools.Data_Generators.Image_Processors_Module.src.Processors.TFDataSets import ConstantProcessors as CProcessors,\
     RelativeProcessors as RProcessors
 from PlotScrollNumpyArrays.Plot_Scroll_Images import plot_scroll_Image
-import tensorflow as tf
 from PIL import Image
 
 
