@@ -67,6 +67,19 @@ def ReturnUNet(x, size=4, layers=7, filters_start=64, double_layers=4):
     return x
 
 
+def resize_tensor(x, wanted_distance=1000, acquired_distance=1540):
+    output_size = int(x.shape[1]//2*wanted_distance/acquired_distance*2)
+    current_size = x.shape[1]
+    x = tf.image.resize(x, [output_size, output_size])
+    if wanted_distance < acquired_distance:
+        x = tf.image.pad_to_bounding_box(x, (current_size - output_size) // 2,
+                                         (current_size - output_size) // 2, current_size, current_size)
+    else:
+        x = x[:, (output_size-current_size)//2:-(output_size-current_size)//2,
+            (output_size-current_size)//2:-(output_size-current_size)//2]
+    return x
+
+
 def GeneratorBMA2(top_layers=2, size=4, layers=7, filters_start=64, double_layers=4, add_unet=False, max_filters=64):
     """
     default values creates the original generator, filters double from start
