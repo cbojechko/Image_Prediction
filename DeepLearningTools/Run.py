@@ -7,7 +7,7 @@ import pandas as pd
 
 def main():
     base_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-    df = pd.read_excel(os.path.join(base_path, 'Model_Results.xlsx')).to_dict()
+    df = pd.read_excel(os.path.join(base_path, 'Model_Outputs', 'Model_Parameters.xlsx')).to_dict()
     for index in df['Model_ID'].keys():
         model_id = df['Model_ID'][index]
         out_path = os.path.join(base_path, 'Model_Outputs', f'Model_{model_id}')
