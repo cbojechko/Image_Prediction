@@ -569,11 +569,13 @@ def create_transmission(patient_path, rewrite):
             panel_shift = fluence_reader.return_key_info("3002|000d").split('\\')
             panel_shift = [float(i) for i in panel_shift]
             panel_shift[-1] = -float(fluence_reader.return_key_info("3002|0026"))
+            panel_shift[:-1] = [0, 0]
             fluence_reader.dicom_handle.SetOrigin(panel_shift)
         if description == "PDOS":
             if image_type.find("CALCULATED_DOSE") != -1:
                 fluence_reader.dicom_handle *= plan_dictionary[referenced_beam_number]["MU"]
                 if os.path.exists(out_file):
+                    # out_file = out_file.replace(".mha", "_Calc.mha")
                     continue
         """
         Now shift the origin
@@ -596,14 +598,14 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     Fourth, align the PDOS and fluence with the DRRs
     """
     skip = os.path.join(patient_path, 'Inputs_made.txt')
-    if os.path.exists(skip) and not rewrite:
-        return None
+    # if os.path.exists(skip) and not rewrite:
+    #     return None
     # create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
     # create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     # if patient_path.find('phantom') != -1:
     #     update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-    createDRRs(patient_path=patient_path, rewrite=rewrite)
-    # create_transmission(patient_path=patient_path, rewrite=rewrite)
+    # createDRRs(patient_path=patient_path, rewrite=rewrite)
+    create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
     return None
