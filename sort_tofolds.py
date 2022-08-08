@@ -80,11 +80,12 @@ def sorttofoldsphan(path):
         shutil.move(file2, dest2)
 
 
-
 def main():
-    path = 'R:\TFRecords\TrainNoNormalizationMultipleProj'
+    path = 'R:\Bojechko\TFRecords\TrainNoNormalizationMultipleProj'
     sorttofolds(path)
-    #sorttofoldsphan(path)
+    sorttofoldsphan(path)
+
 
 if __name__ == '__main__':
-    main()
+    pass
+

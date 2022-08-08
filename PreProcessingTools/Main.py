@@ -338,14 +338,11 @@ def create_registered_cbct(patient_path, rewrite=False):
                                     upper_limit = current_guess_radii
                                     current_guess_radii = upper_limit - (upper_limit - lower_limit) // 2
                             meta_array[z, ...] = dist_from_center < current_guess_radii
-                        meta = sitk.GetImageFromArray(meta_array)
-                        meta.SetSpacing(cbct_handle.GetSpacing())
-                        meta.SetDirection(cbct_handle.GetDirection())
-                        meta.SetOrigin(cbct_handle.GetOrigin())
+                        meta = array_to_sitk(meta_array, cbct_handle)
                         registered_meta = registerDicom(fixed_image=CT_handle,  moving_image=meta,
                                                         moving_series_instance_uid=from_uid, dicom_registration=ds,
                                                         min_value=0, method=sitk.sitkLinear)
-                        sitk.WriteImage(sitk.Cast(registered_meta, sitk.sitkFloat32), out_meta_file)
+                        sitk.WriteImage(sitk.Cast(registered_meta, sitk.sitkUInt8), out_meta_file)
                         sitk.WriteImage(registered_handle, out_reg_file)
                         isocenter = registered_handle.TransformPhysicalPointToIndex(registered_couch)
                         fid = open(out_table_vert, 'w+')
@@ -357,7 +354,7 @@ def create_registered_cbct(patient_path, rewrite=False):
 
 
 def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.Image,
-             erode_filter: sitk.BinaryErodeImageFilter, dilate_filter: sitk.BinaryDilateImageFilter, couch_start: int):
+             erode_filter: sitk.BinaryErodeImageFilter, couch_start: int):
     """
     :param cbct_handle:
     :param ct_handle:
@@ -376,8 +373,6 @@ def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.I
     binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
     eroded_meta = erode_filter.Execute(binary_meta)
     eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
-    test = eroded_meta_array[cbct_array == -1000]
-    temp = np.zeros(cbct_array.shape)
     cbct_array[eroded_meta_array != 1] = ct_array[eroded_meta_array != 1]
     padded_cbct_handle = array_to_sitk(cbct_array, cbct_handle)
     return padded_cbct_handle
@@ -397,8 +392,6 @@ def create_padded_cbcts(patient_path, rewrite=False):
         return None
     erode_filter = sitk.BinaryErodeImageFilter()
     erode_filter.SetKernelType(sitk.sitkBall)
-    dilate_filter = sitk.BinaryDilateImageFilter()
-    dilate_filter.SetKernelType(sitk.sitkBall)
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
@@ -411,8 +404,8 @@ def create_padded_cbcts(patient_path, rewrite=False):
         table_vert = int(fid.readline().split(', ')[1])
         fid.close()
         spacing = registered_handle.GetSpacing()
-        erode_filter.SetKernelRadius((0, 0, int(25/spacing[2])))  # x, y, z
-        padded_cbct = pad_cbct(meta_handle, registered_handle, CT_handle, erode_filter, dilate_filter, couch_start=table_vert)
+        erode_filter.SetKernelRadius((int(5/spacing[0]), int(5/spacing[1]), int(10/spacing[2])))  # x, y, z
+        padded_cbct = pad_cbct(meta_handle, registered_handle, CT_handle, erode_filter, couch_start=table_vert)
         sitk.WriteImage(padded_cbct, out_file)
     fid = open(status_file, 'w+')
     fid.close()

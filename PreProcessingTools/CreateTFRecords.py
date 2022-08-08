@@ -26,7 +26,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
     else:
         df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='folds')
     rewrite_excel = False
-    for patient_data in ['phantom', 'PatientData2']: #,
+    for patient_data in ['phantom']: #,, 'PatientData2'
         base_patient_path = os.path.join(base_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         for patient_MRN in MRN_list:

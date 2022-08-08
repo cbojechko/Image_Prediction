@@ -15,7 +15,14 @@ def create_files_for_streamline(records_path):
         record_paths = [train_path]
         if fold == 0:
             train_path = os.path.join(records_path, 'TrainNoNormalizationMultipleProj')
-            record_paths = [os.path.join(train_path, 'phantom_valid'), os.path.join(train_path, 'phantom_train')]
+            record_paths = [
+                os.path.join(train_path, 'phantom_valid'), os.path.join(train_path, 'phantom_train'),
+                os.path.join(train_path, 'fold1'),
+                os.path.join(train_path, 'fold2'),
+                os.path.join(train_path, 'fold3'),
+                os.path.join(train_path, 'fold4'),
+                os.path.join(train_path, 'fold5')
+            ]
         # record_paths = [train_path]
         train_generator = DataGeneratorClass(record_paths=record_paths)
         all_keys = ('pdos_array', 'fluence_array', 'drr_array', '5cm_deep_array', 'iso_array', '5cm_shallow_array',
@@ -24,9 +31,13 @@ def create_files_for_streamline(records_path):
         processors = [
             CProcessors.Squeeze(image_keys=all_keys),
             CProcessors.MultiplyImagesByConstant(keys=('drr_array', 'iso_array', '5cm_deep_array', '5cm_shallow_array'),
-                                                 values=(1/1, 1/1, 1/1, 1/1)),#(1 / 325, 1 / 325, 1/325, 1/325)
+                                                 values=(255/300, 255/300, 255/300, 255/300)),#(1 / 325, 1 / 325, 1/325, 1/325)
+            RProcessors.NormalizeBasedOnOther(guiding_keys=('pdos_array', 'pdos_array'),
+                                              changing_keys=('fluence_array', 'pdos_array'),
+                                              reference_method=('reduce_max', 'reduce_max'),
+                                              changing_methods=('divide', 'divide')),
             CProcessors.MultiplyImagesByConstant(keys=('pdos_array', 'fluence_array'),
-                                                 values=(1, 1)),#(1 / 3.448, 1 / 2.226)
+                                                 values=(255, 255)),  # (1 / 3.448, 1 / 2.226)
             CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
             CProcessors.CombineKeys(axis=-1, image_keys=all_keys, output_key='combined'),
             CProcessors.ReturnOutputs(input_keys=('combined',), output_keys=('out_file_name',)),
@@ -49,9 +60,9 @@ def create_files_for_streamline(records_path):
             print(file_info)
             if file_info.split('_')[0] == '12':
                 xxx = 1
-            for i in range(numpy_array.shape[-1]):
-                numpy_array[..., i] /= np.max(numpy_array[..., i])
-            numpy_array *= 255
+            # for i in range(numpy_array.shape[-1]):
+            #     numpy_array[..., i] /= np.max(numpy_array[..., i])
+            # numpy_array *= 255
             np.save(os.path.join(out_path_numpy, "{}.npy".format(file_info)), numpy_array)
             max_val = np.max(numpy_array[...,-1])
 
@@ -72,4 +83,5 @@ def main():
 
 
 if __name__ == '__main__':
+    main()
     pass
