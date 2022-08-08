@@ -315,11 +315,37 @@ def create_registered_cbct(patient_path, rewrite=False):
                                                                             method=sitk.sitkLinear,
                                                                             return_affine=True)
                         registered_couch = affine_transform.GetInverse().TransformPoint(couch)
-                        meta = sitk.Image(cbct_handle)*0 + 1
+                        cbct_array = sitk.GetArrayFromImage(cbct_handle)
+                        meta_array = np.zeros(cbct_array.shape)
+                        Y, X = np.ogrid[:meta_array.shape[1], :meta_array.shape[2]]
+                        dist_from_center = np.sqrt((X - meta_array.shape[1]//2) ** 2 +
+                                                   (Y - meta_array.shape[2]//2) ** 2)
+                        binary_images = cbct_array > -1000
+                        for z in range(cbct_array.shape[0]):
+                            binary_image = binary_images[z, ...]
+                            total_max = np.sum(dist_from_center < meta_array.shape[1] * binary_image)  # This is the absolute max
+                            upper_limit = meta_array.shape[1]
+                            lower_limit = 0
+                            current_guess_radii = (upper_limit - lower_limit) // 2 + lower_limit
+                            previous_guess_radii = upper_limit
+                            while previous_guess_radii != current_guess_radii:
+                                current_sum = np.sum(dist_from_center < current_guess_radii * binary_image)
+                                previous_guess_radii = current_guess_radii
+                                if current_sum < total_max:
+                                    lower_limit = current_guess_radii
+                                    current_guess_radii = (upper_limit - lower_limit) // 2 + lower_limit
+                                else:
+                                    upper_limit = current_guess_radii
+                                    current_guess_radii = upper_limit - (upper_limit - lower_limit) // 2
+                            meta_array[z, ...] = dist_from_center < current_guess_radii
+                        meta = sitk.GetImageFromArray(meta_array)
+                        meta.SetSpacing(cbct_handle.GetSpacing())
+                        meta.SetDirection(cbct_handle.GetDirection())
+                        meta.SetOrigin(cbct_handle.GetOrigin())
                         registered_meta = registerDicom(fixed_image=CT_handle,  moving_image=meta,
                                                         moving_series_instance_uid=from_uid, dicom_registration=ds,
                                                         min_value=0, method=sitk.sitkLinear)
-                        sitk.WriteImage(sitk.Cast(registered_meta, sitk.sitkUInt8), out_meta_file)
+                        sitk.WriteImage(sitk.Cast(registered_meta, sitk.sitkFloat32), out_meta_file)
                         sitk.WriteImage(registered_handle, out_reg_file)
                         isocenter = registered_handle.TransformPhysicalPointToIndex(registered_couch)
                         fid = open(out_table_vert, 'w+')
@@ -331,7 +357,7 @@ def create_registered_cbct(patient_path, rewrite=False):
 
 
 def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.Image,
-             erode_filter: sitk.BinaryErodeImageFilter, couch_start: int):
+             erode_filter: sitk.BinaryErodeImageFilter, dilate_filter: sitk.BinaryDilateImageFilter, couch_start: int):
     """
     :param cbct_handle:
     :param ct_handle:
@@ -350,7 +376,8 @@ def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.I
     binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
     eroded_meta = erode_filter.Execute(binary_meta)
     eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
-
+    test = eroded_meta_array[cbct_array == -1000]
+    temp = np.zeros(cbct_array.shape)
     cbct_array[eroded_meta_array != 1] = ct_array[eroded_meta_array != 1]
     padded_cbct_handle = array_to_sitk(cbct_array, cbct_handle)
     return padded_cbct_handle
@@ -370,7 +397,8 @@ def create_padded_cbcts(patient_path, rewrite=False):
         return None
     erode_filter = sitk.BinaryErodeImageFilter()
     erode_filter.SetKernelType(sitk.sitkBall)
-    erode_filter.SetKernelRadius((0, 0, 5)) # First only expand in the z direction
+    dilate_filter = sitk.BinaryDilateImageFilter()
+    dilate_filter.SetKernelType(sitk.sitkBall)
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
@@ -382,7 +410,9 @@ def create_padded_cbcts(patient_path, rewrite=False):
         fid = open(table_file)
         table_vert = int(fid.readline().split(', ')[1])
         fid.close()
-        padded_cbct = pad_cbct(meta_handle, registered_handle, CT_handle, erode_filter, couch_start=table_vert)
+        spacing = registered_handle.GetSpacing()
+        erode_filter.SetKernelRadius((0, 0, int(25/spacing[2])))  # x, y, z
+        padded_cbct = pad_cbct(meta_handle, registered_handle, CT_handle, erode_filter, dilate_filter, couch_start=table_vert)
         sitk.WriteImage(padded_cbct, out_file)
     fid = open(status_file, 'w+')
     fid.close()
@@ -600,11 +630,11 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     skip = os.path.join(patient_path, 'Inputs_made.txt')
     # if os.path.exists(skip) and not rewrite:
     #     return None
-    # create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    # create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
+    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     if patient_path.find('phantom') != -1:
         update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-    # createDRRs(patient_path=patient_path, rewrite=rewrite)
+    createDRRs(patient_path=patient_path, rewrite=rewrite)
     #create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
