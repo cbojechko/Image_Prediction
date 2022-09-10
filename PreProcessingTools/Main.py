@@ -235,12 +235,6 @@ def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
 
 
 def create_registered_cbct(patient_path, rewrite=False):
-    if not os.path.exists(os.path.join(patient_path, 'pCT')):
-        print("No primary CT for {}".format(patient_path))
-        fid = open(logs_file, 'a')
-        fid.write("No primary CT for {}\n".format(patient_path))
-        fid.close()
-        return None
     out_folder = os.path.join(patient_path, "Niftiis")
     status_file = os.path.join(out_folder, "Finished_Reg_CBCT.txt")
     if not os.path.exists(out_folder):
@@ -620,6 +614,12 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     Third, create the DRR and half-CBCT DRR for each beam angle
     Fourth, align the PDOS and fluence with the DRRs
     """
+    if not os.path.exists(os.path.join(patient_path, 'pCT')):
+        print("No primary CT for {}".format(patient_path))
+        fid = open(logs_file, 'a')
+        fid.write("No primary CT for {}\n".format(patient_path))
+        fid.close()
+        return None
     skip = os.path.join(patient_path, 'Inputs_made.txt')
     # if os.path.exists(skip) and not rewrite:
     #     return None
@@ -628,7 +628,7 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     if patient_path.find('phantom') != -1:
         update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
-    #create_transmission(patient_path=patient_path, rewrite=rewrite)
+    create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
     return None

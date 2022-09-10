@@ -19,7 +19,7 @@ if create_patient_inputs:
     Third, create the DRR and half-CBCT DRR for each beam angle
     Fourth, align the PDOS and fluence with the DRRs
     """
-    for patient_data in ['PatientData2', 'phantom']: #,
+    for patient_data in ['PatientData2']: #, 'phantom'
         base_patient_path = os.path.join(data_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         # fid = open(os.path.join('.', 'PreProcessingTools', 'MRN'))
@@ -34,7 +34,7 @@ if create_patient_inputs:
 """
 Lets create some .tfrecords from data already made
 """
-if False:
+if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path, rewrite=True)
     from sort_tofolds import main
