@@ -243,6 +243,7 @@ def create_registered_cbct(patient_path, rewrite=False):
         return None
     Dicom_reader = DicomReaderWriter(description='Examples', verbose=False)
     CT_SIUID = None
+    CT_handle = None
     primary_CTSUID_path = os.path.join(out_folder, "PrimaryCTSIUD.txt")
     if not os.path.exists(primary_CTSUID_path):
         Dicom_reader.walk_through_folders(os.path.join(patient_path, 'pCT'))  # Read in the primary CT
@@ -262,6 +263,10 @@ def create_registered_cbct(patient_path, rewrite=False):
         CT_SIUID = fid.readline()
         fid.close()
         CT_handle = sitk.ReadImage(os.path.join(out_folder, "Primary_CT.mha"))
+    if CT_handle is None:
+        fid = open(os.path.join(patient_path, "No_Primary_CT.txt"), 'w+')
+        fid.close()
+        return None
     Dicom_reader.walk_through_folders(os.path.join(patient_path, 'CT')) # Read in the CBCTs
     reg_path = os.path.join(patient_path, 'REG')
     if not os.path.exists(reg_path):
@@ -288,9 +293,6 @@ def create_registered_cbct(patient_path, rewrite=False):
                         if time_stamp > time_previous:
                             update_from_time = True
                             print("Rewriting the file based on the time stamps...")
-                            fid = open(logs_file, 'a')
-                            fid.write("Multiple CBCTs per day on {}\n".format(patient_path))
-                            fid.close()
                     else:
                         date_time_dict[date] = time_stamp
                     out_reg_file = os.path.join(out_folder, "Registered_CBCT_{}.mha".format(date))
