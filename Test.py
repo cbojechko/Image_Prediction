@@ -1,16 +1,5 @@
-import os
-
-path = r'K:\10yr_patients_full.txt'
-fid = open(path)
-MRNs = []
-for line in fid:
-    x = 5
-    MRN = line.split('\t')[0]
-    if MRN != "":
-        if MRN not in MRNs:
-            MRNs.append(MRN)
-fid.close()
-fid = open(os.path.join('K:', '10yr_patientsMRNs.txt'), 'w+')
-for line in MRNs:
-    fid.write(line + '\n')
-fid.close()
+appname = ["tandem","ovoid1","ovoid2","needle1","needle2","needle3","needle4"]
+app_dictionary = {}
+for name in appname:
+    app_dictionary[f"AveDTweight_{name}"] = []
+xxx = 1
