@@ -47,6 +47,6 @@ if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path, rewrite=True)
     from sort_tofolds import main
-    main()
+    # main()
     from DeepLearningTools.Utilities import main
     main()

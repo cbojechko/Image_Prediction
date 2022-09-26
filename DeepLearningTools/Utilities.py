@@ -10,18 +10,22 @@ from PIL import Image
 def create_files_for_streamline(records_path):
     out_path_numpy = os.path.join(records_path, 'NumpyFiles')
     out_path_jpeg = os.path.join(records_path, 'JpegsNoNormalizationMultipleProj')
+    for d in [out_path_numpy, out_path_jpeg]:
+        if not os.path.exists(d):
+            os.makedirs(d)
     for fold in [0]:
         train_path = os.path.join(records_path, 'Train', 'fold{}'.format(fold))
         record_paths = [train_path]
         if fold == 0:
             train_path = os.path.join(records_path, 'TrainNoNormalizationMultipleProj')
             record_paths = [
-                os.path.join(train_path, 'phantom_valid'), os.path.join(train_path, 'phantom_train'),
-                os.path.join(train_path, 'fold1'),
-                os.path.join(train_path, 'fold2'),
-                os.path.join(train_path, 'fold3'),
-                os.path.join(train_path, 'fold4'),
-                os.path.join(train_path, 'fold5')
+                train_path,
+                # os.path.join(train_path, 'phantom_valid'), os.path.join(train_path, 'phantom_train'),
+                # os.path.join(train_path, 'fold1'),
+                # os.path.join(train_path, 'fold2'),
+                # os.path.join(train_path, 'fold3'),
+                # os.path.join(train_path, 'fold4'),
+                # os.path.join(train_path, 'fold5')
             ]
         # record_paths = [train_path]
         train_generator = DataGeneratorClass(record_paths=record_paths)
