@@ -7,7 +7,7 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-create_patient_inputs = True
+create_patient_inputs = False
 rewrite = True
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
 logs_file = os.path.join('.', 'errors_log.txt')
@@ -26,11 +26,12 @@ if create_patient_inputs:
     for patient_data in ['PatientData2']: #, 'phantom'
         base_patient_path = os.path.join(data_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
-        #fid = open(os.path.join('.', 'PreProcessingTools', 'MRN.txt'))
-        #MRN_list = [fid.readline()]
-        #fid.close()
+        fid = open(os.path.join('.', 'PreProcessingTools', 'MRN.txt'))
+        MRN_list = fid.readlines()
+        fid.close()
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
         for patient_MRN in MRN_list:
+            patient_MRN = patient_MRN.strip('\n')
             print(patient_MRN)
             patient_path = os.path.join(base_patient_path, patient_MRN)
             try:

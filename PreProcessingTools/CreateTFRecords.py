@@ -16,7 +16,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
     """
     output_list = []
     excel_path = os.path.join('.', "Patient_Keys.xlsx")
-    excel_path = r'R:\Bojechko\patientlist_032222.xlsx'
+    excel_path = r'R:\Bojechko\patientlist_081722.xlsx'
     # print("We are not adding patients in the excel file! This is only loading from an available excel file, we aware!")
     patient_id_column = 'MRN'
     if not os.path.exists(excel_path):
@@ -24,7 +24,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
         df = pd.DataFrame(data_dictionary)
         df.to_excel(excel_path, index=0)
     else:
-        df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='folds')
+        df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='Sheet1')
     rewrite_excel = False
     for patient_data in ['PatientData2']: #,'phantom',
         base_patient_path = os.path.join(base_path, patient_data)
@@ -33,6 +33,10 @@ def return_dictionary_list(base_path, out_path, rewrite):
             previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN]
             if previous_run.shape[0] == 0:
                 previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN[1:]]
+            if previous_run.shape[0] == 0:
+                previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN[1:]+'.0']
+            if previous_run.shape[0] == 0:
+                previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN+'.0']
             if previous_run.shape[0] == 0:
                 try:
                     previous_run = df.loc[df[patient_id_column].astype('int') == int(patient_MRN)]
