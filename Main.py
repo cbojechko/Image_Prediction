@@ -7,14 +7,13 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-create_patient_inputs = False
 rewrite = True
 data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
 logs_file = os.path.join('.', 'errors_log.txt')
 if not os.path.exists(logs_file):
     fid = open(logs_file, 'w+')
     fid.close()
-if create_patient_inputs:
+if True:
     from tqdm import tqdm
     from PreProcessingTools.Main import create_inputs
     """
