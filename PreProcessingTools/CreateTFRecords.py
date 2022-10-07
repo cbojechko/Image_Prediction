@@ -16,7 +16,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
     """
     output_list = []
     excel_path = os.path.join('.', "Patient_Keys.xlsx")
-    excel_path = r'R:\Bojechko\patientlist_032222.xlsx'
+    excel_path = r'R:\Bojechko\patientlist_081722.xlsx'
     # print("We are not adding patients in the excel file! This is only loading from an available excel file, we aware!")
     patient_id_column = 'MRN'
     if not os.path.exists(excel_path):
@@ -24,15 +24,19 @@ def return_dictionary_list(base_path, out_path, rewrite):
         df = pd.DataFrame(data_dictionary)
         df.to_excel(excel_path, index=0)
     else:
-        df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='folds')
+        df = pd.read_excel(excel_path, engine='openpyxl', sheet_name='Sheet1')
     rewrite_excel = False
-    for patient_data in ['phantom']: #, 'PatientData2'
+    for patient_data in ['PatientData2']: #,'phantom',
         base_patient_path = os.path.join(base_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
         for patient_MRN in MRN_list:
             previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN]
             if previous_run.shape[0] == 0:
                 previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN[1:]]
+            if previous_run.shape[0] == 0:
+                previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN[1:]+'.0']
+            if previous_run.shape[0] == 0:
+                previous_run = df.loc[df[patient_id_column].astype('str') == patient_MRN+'.0']
             if previous_run.shape[0] == 0:
                 try:
                     previous_run = df.loc[df[patient_id_column].astype('int') == int(patient_MRN)]
@@ -65,6 +69,9 @@ def return_dictionary_list(base_path, out_path, rewrite):
                     iso_proj_file = os.path.join(path, f"Proj_0cm_to_iso_{addition}.mha")
                     deep_proj_file = os.path.join(path, f"Proj_5cm_to_iso_{addition}.mha")
                     shallow_proj_file = os.path.join(path, f"Proj_-5cm_to_iso_{addition}.mha")
+                    deep_proj_to_panel_file = os.path.join(path, f"Proj_5cm_from_iso_to_panel_{addition}.mha")
+                    iso_proj_to_panel_file = os.path.join(path, f"Proj_0cm_from_iso_to_panel_{addition}.mha")
+                    shallow_proj_to_panel_file = os.path.join(path, f"Proj_-5cm_from_iso_to_panel_{addition}.mha")
                     full_drr_file = os.path.join(path, f"DRR_{addition}.mha")
                     examples_exist = [os.path.exists(os.path.join(out_path, "{}_{}_{}_{}.tfrecord".format(i,
                                                                                                           angle, date,
@@ -74,9 +81,12 @@ def return_dictionary_list(base_path, out_path, rewrite):
                         continue
                     if os.path.exists(full_drr_file) and os.path.exists(iso_proj_file):
                         patient_dict = {'pdos_path': pdos_file, 'fluence_path': fluence_file,
-                                        '-5cm_drr_path': shallow_proj_file,
-                                        '5cm_drr_path': deep_proj_file,
+                                        '5cm_shallow_path': shallow_proj_file,
+                                        '5cm_deep_path': deep_proj_file,
                                         'iso_drr_path': iso_proj_file, 'full_drr_path': full_drr_file,
+                                        'deep_to_panel_path': deep_proj_to_panel_file,
+                                        'iso_to_panel_path': iso_proj_to_panel_file,
+                                        'shallow_to_panel_path': shallow_proj_to_panel_file,
                                         'out_file_name': f"{i}_{angle}_{date}.tfrecord"}
                         output_list.append(patient_dict)
     if rewrite_excel:
@@ -94,7 +104,8 @@ def make_train_records(base_path, rewrite=False):
         return None
     record_writer = RecordWriter.RecordWriter(out_path=out_path,
                                               file_name_key='out_file_name', rewrite=rewrite)
-    keys = ('pdos_handle', 'fluence_handle', 'drr_handle', '-5cm_handle', 'iso_handle', '5cm_handle')
+    keys = ('pdos_handle', 'fluence_handle', 'drr_handle', '5cm_deep_handle', 'iso_handle', '5cm_shallow_handle',
+            'deep_to_panel_handle', 'iso_to_panel_handle', 'shallow_to_panel_handle')
     array_keys = tuple(i.replace('_handle', '_array') for i in keys)
     """
     Load all of the files into SITK handles
@@ -103,11 +114,13 @@ def make_train_records(base_path, rewrite=False):
     """
     spacing = 1.68
     train_processors = [
-        Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'full_drr_path', '-5cm_drr_path',
-                                              'iso_drr_path', '5cm_drr_path'),
+        Processors.LoadNifti(nifti_path_keys=('pdos_path', 'fluence_path', 'full_drr_path', '5cm_deep_path',
+                                              'iso_drr_path', '5cm_shallow_path', 'deep_to_panel_path',
+                                              'iso_to_panel_path', 'shallow_to_panel_path'),
                              out_keys=keys),
         Processors.ResampleSITKHandles(desired_output_spacing=(spacing, spacing, 1.0), resample_keys=('fluence_handle',),
-                                       resample_interpolators=['Linear',]),
+                                       resample_interpolators=('Linear',)),
+        Processors.SetSITKOrigin(keys=keys, desired_output_origin=(None, None, -1540)),
         Processors.ResampleSITKHandlesToAnotherHandle(resample_keys=keys,
                                                       reference_handle_keys=['fluence_handle' for _ in range(len(keys))],
                                                       resample_interpolators=['Linear' for _ in range(len(keys))]),

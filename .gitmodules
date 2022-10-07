@@ -10,3 +10,6 @@
 [submodule "PreProcessingTools/Dicom_RT_and_Images_to_Mask"]
 	path = PreProcessingTools/Dicom_RT_and_Images_to_Mask
 	url = https://github.com/brianmanderson/Dicom_RT_and_Images_to_Mask
+[submodule "DeepLearningTools/Finding_Optimization_Parameters"]
+	path = DeepLearningTools/Finding_Optimization_Parameters
+	url = https://github.com/brianmanderson/Finding_Optimization_Parameters

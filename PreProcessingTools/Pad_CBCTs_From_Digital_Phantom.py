@@ -22,9 +22,9 @@ def update_CBCT(nifti_path, rewrite=False):
         padded_handle = sitk.ReadImage(padded_cbct)
         spacing = padded_handle.GetSpacing()
         padded_np = sitk.GetArrayFromImage(padded_handle)
-        flattened_padded = np.max(padded_np, axis=(1, 2))
-        air = np.where(flattened_padded == -1000)[0]
-        not_air = np.where(flattened_padded > -1000)[0]
+        flattened_padded = np.average(padded_np, axis=(1, 2))
+        air = np.where(flattened_padded < -900)[0]
+        not_air = np.where(flattened_padded > -900)[0]
         if len(air) > 0:
             if len(not_air) > 0:
                 start = not_air[0] + int(20/spacing[-1])
@@ -34,6 +34,8 @@ def update_CBCT(nifti_path, rewrite=False):
                 new_padded_handle = array_to_sitk(padded_np, reference_handle=padded_handle)
                 sitk.WriteImage(new_padded_handle, padded_cbct)
                 print('Rewriting {}'.format(nifti_path))
+        else:
+            print(f"No padding on {nifti_path}")
         fid = open(status_file, 'w+')
         fid.close()
 
