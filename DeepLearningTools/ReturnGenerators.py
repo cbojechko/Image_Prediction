@@ -193,7 +193,7 @@ def return_fold_datasets(data_generators, excluded_fold=5, batch_size=1):
 
 
 def main():
-    records_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko\TFRecords'
+    records_path = r'R:\\TFRecords'
     create_files_for_streamline(records_path)
     return None
     data_generators = {}

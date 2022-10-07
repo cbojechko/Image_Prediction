@@ -605,3 +605,4 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
 
 if __name__ == '__main__':
     pass
+
