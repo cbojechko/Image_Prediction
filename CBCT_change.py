@@ -1,4 +1,3 @@
-
 #%%
 import glob
 
@@ -7,19 +6,20 @@ import numpy as np
 from numpy.core.numeric import False_
 from numpy.lib.twodim_base import _trilu_dispatcher
 import pandas as pd
+import openpyxl
 import matplotlib.pyplot as plt
 
-import pymedphys
+#import pymedphys
 import os 
 import re
 import PIL
 from glob import glob
 import pydicom
 
-from scipy import interpolate
-from scipy import ndimage
+#from scipy import interpolate
+#from scipy import ndimage
 from collections import defaultdict
-
+import xlsxwriter
 
 def get_HGHD(rtimage,gthres=0.05,dthres=0.5):
     gradient = get_Grad(rtimage)
@@ -49,7 +49,6 @@ def get_Grad(rtimage):
 
     return gradient
 
-
 def primaryatten(inputjpeg):
     cbct, half, pdos, rt = getimages(inputjpeg)
 
@@ -76,9 +75,6 @@ def getpredprofiles(inputjpeg,crossval,supinf = False):
 
     return propred
 
-
-
-
 def getimages(inputjpeg):
     inputpdos = np.array(inputjpeg.crop((0,0,256,256)))
     inputrt = np.array(inputjpeg.crop((256,0,512,256)))
@@ -87,7 +83,6 @@ def getimages(inputjpeg):
 
     #return inputcbct,inputhalf,inputpdos,inputrt
     return inputcbct/255.0,inputhalf/255.0,inputpdos/255.0,inputrt/255.0
-
 
 def getprofiles(inputjpeg,crossval,supinf=False):
 
@@ -111,7 +106,6 @@ def getprofiles(inputjpeg,crossval,supinf=False):
 
     #return procbct , prohalf , propdos , prort
     return procbct/255.0,prohalf/255.0, propdos/255.0, prort/255.0
-
 
 def getprofilesnew(inputjpeg,crossval,supinf=False):
 
@@ -188,11 +182,11 @@ def getratio(inputjpeg):
 
     return cbctval, ratio
 
-
-def make_plots(path,idx_and_angles):
+def make_plots(path,idx_and_angles,dfin):
     # Make the CAX the middle of the image
     #print(idx_and_angles)
-    outpath = os.path.join(os.path.dirname(path),'QAplots')
+    #outpath = os.path.join(os.path.dirname(path),'QAplots')
+    outpath = os.path.join(os.path.dirname(path),'QAother')
     #crossval = 128
     idx = idx_and_angles[0]
     #print("Patient idx " +str(idx))
@@ -202,12 +196,12 @@ def make_plots(path,idx_and_angles):
     delx = []
     dely = []
     for i in range(1,len(idx_and_angles)):
-        filen = str(idx) + '_G' + str(idx_and_angles[i]) + '_*.jpeg'
+        filen = str(idx) + '_G' + str(idx_and_angles[i]) + '*.jpeg'
         #print(filen)
-        filesiout = str(idx) + '_G' + str(idx_and_angles[i]) +'_rt_cbct.jpeg'
+        #filesiout = str(idx) + '_G' + str(idx_and_angles[i]) + '_' + str(date) + '_rt_cbct.jpeg'
         #print(filesiout)
         #filelatout = str(idx) + '_G' + str(idx_and_angles[i]) + '_lat.jpeg'
-        imgout = os.path.join(outpath,filesiout )
+
         #print("test")
         #print(idx)
         #print("Angle " +  str(idx_and_angles[i]))
@@ -224,16 +218,30 @@ def make_plots(path,idx_and_angles):
             #print(imgfile)
             #image1 = PIL.Image.open(jfiles[0])
             image2 = PIL.Image.open(imgfile)
-            tt = imgfile.split('\\')
-            rr = tt[3].split('_')
+            tt = imgfile.split('/')
+            rr = tt[7].split('_')
             patidx = rr[0]
             gang = rr[1].split('G')[1]
-            #print("Ang " + str(gang))
+            print("Ang " + str(gang))
             ss = rr[2].split('.')
             date = ss[0]
             leg = np.append(leg,date)
             #print(image1)
             delCT,delRT = getratio(image2)
+            #Calc variance
+            toterr =0
+            n = len(delCT)
+
+            filesiout = str(idx) + '_G' + str(idx_and_angles[i]) + '_' + str(date) + '_rt_cbct.jpeg'
+            imgout = os.path.join(outpath, filesiout)
+            for j in range(0,n):
+                err = np.square(delRT[j]- (1.0 * np.exp(-4.0 * delCT[j]) + 0.15 * delCT[j] - 0.1 * delCT[j] * delCT[j]))
+                toterr = toterr + err
+
+            print("total error " + str(toterr) + " Normalized " + str(toterr/n))
+            dfin.append( {'idx': idx, 'angle': gang, 'err': toterr/n})
+
+
             delx = np.append(delx,delRT)
             dely = np.append(dely, delCT)
 
@@ -241,31 +249,32 @@ def make_plots(path,idx_and_angles):
             plt.plot(delCT,delRT,'o')
             plt.ylabel("RT")
             plt.xlabel("CBCT")
+            xp = np.arange(0, 1.0, 0.01)
+            y = 1.0 * np.exp(-4.0 * xp) + 0.15 * xp - 0.1 * xp * xp
+            plt.plot(xp, y)
             plt.xlim([0.0, 1.0])
             plt.ylim([0.0, 2.0])
-        #corrr = np.corrcoef(delx, dely)
-        #print("Correlation " + str(corrr[0,1]))
-        plt.legend(leg)
-        plt.savefig(imgout)
-        plt.clf()
-    return dely, delx
+            #corrr = np.corrcoef(delx, dely)
+            #print("Correlation " + str(corrr[0,1]))
+            plt.legend(leg)
+            plt.savefig(imgout)
+            plt.clf()
 
+    return dely, delx, dfin
 
-def main():
-    #path = 'R:\TFRecords\Jpegs'
-    #path = 'R:\TFRecords\JpegsNoNormalization'
-    path = 'R:\TFRecords\JpegsNoNormalizationMultipleProj'
+def sortJpegs(path,dfin):
     jpeg_files = glob(os.path.join(path, '*.jpeg'))
 
-    allthings =[]
+    allthings = []
     for file in jpeg_files:
-        tt = file.split('\\')
-        rr = tt[3].split('_')
+        print(file)
+        tt = file.split('/')
+        rr = tt[7].split('_')
         patidx = rr[0]
         gang = rr[1].split('G')[1]
         ss = rr[2].split('.')
         date = ss[0]
-        tupdata = (patidx,gang)
+        tupdata = (patidx, gang)
         allthings.append(tupdata)
 
     idxandgang = list(set([i for i in allthings]))
@@ -276,54 +285,53 @@ def main():
         mapp[key].append(val)
     res = [(key, *val) for key, val in mapp.items()]
 
-
     fullCT = []
     fullRT = []
     for line in res:
-        print(line[0])
+        #print(line[0])
 
-        if( int(line[0]) != 6 and  int(line[0]) != 13 and int(line[0]) != 14   and int(line[0]) != 18
-                              and int(line[0]) != 22 and int(line[0]) != 25 and int(line[0]) != 28 and int(line[0]) != 29
-                              and int(line[0]) != 30 and int(line[0]) != 37 and int(line[0]) != 39 and int(line[0]) != 40
-                              and int(line[0]) != 42 and int(line[0]) != 44 ):
-         continue
-
-        delCT, delRT = make_plots(path,line)
+        delCT, delRT, dfout = make_plots(path,line,dfin)
         fullCT = np.append(delCT, fullCT)
         fullRT = np.append(delRT, fullRT)
 
+
     plt.plot(fullCT, fullRT, 'bo')
-    arr = np.load('R:\TFRecords\QA\phantom.npz')
-    phanCT = arr['phanCT']
-    phanRT = arr['phanRT']
-    plt.plot(phanCT, phanRT, 'rx')
-    #plt.plot(fullCT, fullRT, 'bo')
 
-
-    """ 
-    oneCT =[]
-    oneRT = []
-    for line in res:
-        print(line[0])
-        if( int(line[0]) <50 ):
-            continue
-        delCT, delRT = make_plots(path,line)
-        oneCT = np.append(delCT, oneCT)
-        oneRT = np.append(delRT, oneRT)
-
-    #np.savez('R:\TFRecords\QA\phantom',phanCT =oneCT,phanRT=oneRT)
-    #np.save('R:\TFRecords\QA\phantom', oneRT)
-    plt.plot(fullCT, fullRT, 'bo')
-    plt.plot(oneCT, oneRT, 'rx')
-    """
     xp = np.arange(0, 1.0, 0.01)
     y = 1.0 * np.exp(-4.0 * xp) + 0.15 * xp - 0.1 * xp * xp
     plt.plot(xp, y)
-
     plt.show()
-    #fullCT = np.append(delCT)
-    #fullRT = np.append(delRT)
+    return dfout
 
+def main():
+    #path = 'R:\TFRecords\Jpegs'
+    #path = 'R:\TFRecords\JpegsNoNormalization'
+    bpath = "/Users/caseybojechko/Documents/Image_Prediction/jpeg"
+    #path = 'R:\TFRecords\JpegsNoNormalizationMultipleProj
+    phantom = True
+    dfin = []
+    if phantom:
+        dfin = []
+        #folder = "testpat"
+        folder = "otherfrac"
+        path = os.path.join(bpath, folder)
+        dfout = sortJpegs(path,dfin)
+        #df = pd.DataFrame(dfout)
+        #df.sort_values(by=['idx'])
+        #df.to_excel("/Users/caseybojechko/Documents/Image_Prediction/testphan.xlsx")
+    else:
+        dfall =[]
+        for fold in range(1,6):
+            dfin = []
+            folder = "fold" + str(fold)
+            path = os.path.join(bpath,folder)
+            dfout = sortJpegs(path,dfin)
+            dfall = dfall + dfout
+
+        df = pd.DataFrame(dfall)
+        df.idx = df.idx.astype(int)
+        df = df.sort_values(by=['idx'])
+        df.to_excel("/Users/caseybojechko/Documents/Image_Prediction/testpat.xlsx")
 
     return None
 
