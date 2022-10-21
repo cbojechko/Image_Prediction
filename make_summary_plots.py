@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pydicom
 import matplotlib.pyplot as plt
-import SimpleITK as sitk
+#import SimpleITK as sitk
 from glob import glob
 import re
 import PIL
@@ -59,6 +59,7 @@ def make_summary_plot(path,idx_and_angles):
     # Make the CAX the middle of the image
 
     outpath = os.path.join(os.path.dirname(path),'summary_plots')
+    print(outpath)
     crossval = 128
     idx = idx_and_angles[0]
     print("Patient idx " +str(idx))
@@ -96,30 +97,36 @@ def make_summary_plot(path,idx_and_angles):
     return None
 
 def main():
-    path = 'R:\TFRecords\JpegsNoNormalization'
-    jpeg_files = glob(os.path.join(path, '*.jpeg'))
+    bpath =  "/Users/caseybojechko/Documents/Image_Prediction/jpeg/"
+    #Loop through folds
 
-    allthings =[]
-    for file in jpeg_files:
-        tt = file.split('\\')
-        rr = tt[3].split('_')
-        patidx = rr[0]
-        gang = rr[1].split('G')[1]
-        ss = rr[2].split('.')
-        date = ss[0]
-        tupdata = (patidx,gang)
-        allthings.append(tupdata)
+    for fold in range(1,6):
+        folder = "fold" + str(fold)
+        path = os.path.join(bpath,folder)
+        #print(path)
+        jpeg_files = glob(os.path.join(path, '*.jpeg'))
 
-    idxandgang = list(set([i for i in allthings]))
-    idxandgang = sorted(idxandgang, key=lambda x: x[0])
+        allthings =[]
+        for file in jpeg_files:
+            tt = file.split('/')
+            rr = tt[7].split('_')
+            patidx = rr[0]
+            gang = rr[1].split('G')[1]
+            ss = rr[2].split('.')
+            date = ss[0]
+            tupdata = (patidx,gang)
+            allthings.append(tupdata)
 
-    mapp = defaultdict(list)
-    for key, val in idxandgang:
-        mapp[key].append(val)
-    res = [(key, *val) for key, val in mapp.items()]
+        idxandgang = list(set([i for i in allthings]))
+        idxandgang = sorted(idxandgang, key=lambda x: x[0])
 
-    for line in res:
-        make_summary_plot(path,line)
+        mapp = defaultdict(list)
+        for key, val in idxandgang:
+            mapp[key].append(val)
+        res = [(key, *val) for key, val in mapp.items()]
+
+        for line in res:
+            make_summary_plot(path,line)
 
 
     return None

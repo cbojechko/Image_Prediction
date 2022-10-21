@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pydicom
 import matplotlib.pyplot as plt
-import SimpleITK as sitk
+#import SimpleITK as sitk
 from glob import glob
 import re
 import PIL
@@ -64,8 +64,8 @@ def plot_cax_data(path,foldlist):
     pdosvals = []
     rtvals = []
     for file in jpeg_files:
-        tt = file.split('\\')
-        rr = tt[4].split('_')
+        tt = file.split('/')
+        rr = tt[7].split('_')
         for idx in foldlist:
             if(int(rr[0]) == idx):
 
@@ -112,11 +112,11 @@ def main():
     #path = 'R:\TFRecords\Jpegs'
     #path = 'R:\TFRecords\JpegsNoNormalization'
     #path = 'P:\Image_Prediction\half_jpeg'
-    path1 = 'R:\TFRecords\JpegsNoNormalizationMultipleProj\\fold1'
-    path2 =  'R:\TFRecords\JpegsNoNormalizationMultipleProj\\fold2'
-    path3 = 'R:\TFRecords\JpegsNoNormalizationMultipleProj\\fold3'
-    path4 = 'R:\TFRecords\JpegsNoNormalizationMultipleProj\\fold4'
-    path5 = 'R:\TFRecords\JpegsNoNormalizationMultipleProj\\fold5'
+    path1 = r"/Users/caseybojechko/Documents/Image_Prediction/jpeg/fold1"
+    path2 = "/Users/caseybojechko/Documents/Image_Prediction/jpeg/fold2"
+    path3 = "/Users/caseybojechko/Documents/Image_Prediction/jpeg/fold3"
+    path4 = "/Users/caseybojechko/Documents/Image_Prediction/jpeg/fold4"
+    path5 = "/Users/caseybojechko/Documents/Image_Prediction/jpeg/fold5"
 
     phantom = [0,1,2,3,4]
     #pats = [0, 6, 8, 10, 11, 12, 13, 15, 16] # remove 7 no cax
@@ -152,9 +152,9 @@ def main():
 
     plt.plot(cbctvals1, ratiovals1, 'bo')
     plt.plot(cbctvals2, ratiovals2, 'bo')
-    plt.plot(cbctvals3, ratiovals3, 'bo')
     plt.plot(cbctvals4, ratiovals4, 'bo')
-    plt.plot(cbctvals5, ratiovals5, 'ro')
+    plt.plot(cbctvals5, ratiovals5, 'bo')
+    plt.plot(cbctvals3, ratiovals3, 'ro')
 
     #plt.plot(cbctvals1, ratiovals1, 'ro')
     #plt.plot(cbcttest,  ratiotest, 'ro')
