@@ -40,6 +40,8 @@ def return_generator(records_path, proj_to_panel=True, add_5cm_keys=True, **kwar
     base_processors = [
         CProcessors.Squeeze(image_keys=all_keys),
         CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
+        CProcessors.MultiplyImagesTogether(keys=('pdos_array', 'drr_array'), out_key='pdos_drr_multiplied'),
+        CProcessors.
         CProcessors.MultiplyImagesByConstant(keys=drr_keys, values=(1/90, 1/90, 1/90, 1/90)),
         CProcessors.CombineKeys(axis=-1,
                                 image_keys=input_keys,
