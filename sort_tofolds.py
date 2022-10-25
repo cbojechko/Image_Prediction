@@ -1,58 +1,148 @@
 import os
 import shutil
 from glob import glob
+import pandas as pd
 
 
 def sorttofolds(path):
-    fold1 = []
-    fold2 = []
-    fold3 = []
-    fold4 = []
-    fold5 = []
 
 
-    fold1_idx = [0, 6, 7, 8, 10, 11, 12, 13, 15, 16]
-    fold2_idx = [1, 9, 14, 17, 20, 21, 22,23,24,25]
-    fold3_idx = [2, 18, 26, 28, 31, 32, 33, 35 ,44] # Remove 27, artifact present
-    fold4_idx = [3, 19, 29, 36, 37, 38, 39, 40, 45, 48]
-    fold5_idx = [4, 5, 30, 34, 41, 42, 43, 46, 47, 49] # remove 50? poor image quality 47 is feet first knee
-    for idx1 in fold1_idx:
-        fold1.extend(glob(str(path) + '\\' + str(idx1) + '_*.tfrecord'))
-        fold1.extend(glob(str(path) + '\\' + str(idx1) + '_*.pkl'))
-    for idx2 in fold2_idx:
-        fold2.extend(glob(str(path) + '\\' + str(idx2) + '_*.tfrecord'))
-        fold2.extend(glob(str(path) + '\\' + str(idx2) + '_*.pkl'))
-    for idx3 in fold3_idx:
-        fold3.extend(glob(str(path) + '\\' + str(idx3) + '_*.tfrecord'))
-        fold3.extend(glob(str(path) + '\\' + str(idx3) + '_*.pkl'))
-    for idx4 in fold4_idx:
-        fold4.extend(glob(str(path) + '\\' + str(idx4) + '_*.tfrecord'))
-        fold4.extend(glob(str(path) + '\\' + str(idx4) + '_*.pkl'))
-    for idx5 in fold5_idx:
-        fold5.extend(glob(str(path) + '\\' + str(idx5) + '_*.tfrecord'))
-        fold5.extend(glob(str(path) + '\\' + str(idx5) + '_*.pkl'))
+    excel_path = r"R:\patientlist_081722.xlsx"
+    data= pd.read_excel(excel_path,engine='openpyxl',sheet_name='Sheet1')
 
-    for file1 in fold1:
-        dest1 = path + "\\fold1\\" + os.path.basename(file1)
-        print(file1)
-        shutil.move(file1, dest1)
-    for file2 in fold2:
-        dest2 = path + "\\fold2\\" + os.path.basename(file2)
-        print(file2)
-        shutil.move(file2, dest2)
-    for file3 in fold3:
-        dest3 = path + "\\fold3\\" + os.path.basename(file3)
-        print(file3)
-        shutil.move(file3, dest3)
-    for file4 in fold4:
-        dest4 = path + "\\fold4\\" + os.path.basename(file4)
-        print(file4)
-        shutil.move(file4, dest4)
+    df = pd.DataFrame(data,columns=['Index','MRN','Fx','NF','NIMG','site','Date CBCT'])
+    #print(df)
 
-    for file5 in fold5:
-        dest5 = path + "\\fold5\\" + os.path.basename(file5)
-        print(file5)
-        shutil.move(file5, dest5)
+    for idx,rows in df.iterrows():
+        #print(rows['Index'],rows['Date CBCT'])
+
+        print("idx " + str(rows['Index']))
+        tfpath = str(path) + '\\' + str(rows['Index']) + '_*' + str(rows['Date CBCT']) + '*.tfrecord'
+
+        pklpath = str(path) + '\\' + str(rows['Index']) + '_*' + str(rows['Date CBCT']) + '*.pkl'
+
+        tffiles = glob(tfpath)
+        pklfiles = glob(pklpath)
+
+
+        for tffile in tffiles:
+            #print(tffile)
+
+            if int(rows['Index']) <=30:
+
+                dest1 = path + "\\fold1\\" + os.path.basename(tffile)
+                #print(tffile)
+                print(dest1)
+                shutil.move(tffile, dest1)
+
+            elif int(rows['Index']) > 30 and int(rows['Index']) <= 56:
+
+                dest2 = path + "\\fold2\\" + os.path.basename(tffile)
+                print(dest2)
+                shutil.move(tffile, dest2)
+
+            elif int(rows['Index']) > 56 and int(rows['Index']) <= 84:
+
+                dest3 = path + "\\fold3\\" + os.path.basename(tffile)
+                print(dest3)
+                shutil.move(tffile, dest3)
+
+            elif int(rows['Index']) > 84 and int(rows['Index']) <= 114:
+
+                dest4 = path + "\\fold4\\" + os.path.basename(tffile)
+                print(dest4)
+                shutil.move(tffile, dest4)
+
+            elif int(rows['Index']) > 114 and int(rows['Index']) <= 139:
+
+                dest5 = path + "\\fold5\\" + os.path.basename(tffile)
+                print(dest5)
+                shutil.move(tffile, dest5)
+
+        for pklfile in pklfiles:
+
+            if int(rows['Index']) <=30:
+
+                dest1 = path + "\\fold1\\" + os.path.basename(pklfile)
+                #print(tffile)
+                print(dest1)
+                shutil.move(pklfile, dest1)
+
+            elif int(rows['Index']) > 30 and int(rows['Index']) <= 56:
+
+                dest2 = path + "\\fold2\\" + os.path.basename(pklfile)
+                print(dest2)
+                shutil.move(pklfile, dest2)
+
+            elif int(rows['Index']) > 56 and int(rows['Index']) <= 84:
+
+                dest3 = path + "\\fold3\\" + os.path.basename(pklfile)
+                print(dest3)
+                shutil.move(pklfile, dest3)
+
+            elif int(rows['Index']) > 84 and int(rows['Index']) <= 114:
+
+                dest4 = path + "\\fold4\\" + os.path.basename(pklfile)
+                print(dest4)
+                shutil.move(pklfile, dest4)
+
+            elif int(rows['Index']) > 114 and int(rows['Index']) <= 139:
+
+                dest5 = path + "\\fold5\\" + os.path.basename(pklfile)
+                print(dest5)
+                shutil.move(pklfile, dest5)
+
+def sortjpegs(path):
+
+        excel_path = r"R:\patientlist_081722.xlsx"
+        data = pd.read_excel(excel_path, engine='openpyxl', sheet_name='Sheet1')
+
+        df = pd.DataFrame(data, columns=['Index', 'MRN', 'Fx', 'NF', 'NIMG', 'site', 'Date CBCT'])
+        # print(df)
+
+        for idx, rows in df.iterrows():
+            # print(rows['Index'],rows['Date CBCT'])
+
+            print("idx " + str(rows['Index']))
+            jpegpath = str(path) + '\\' + str(rows['Index']) + '_*' + str(rows['Date CBCT']) + '*.jpeg'
+            print(jpegpath)
+            jpegfiles = glob(jpegpath)
+
+
+            for jpegfile in jpegfiles:
+                #print(tffile)
+
+                if int(rows['Index']) <= 30:
+
+                    dest1 = path + "\\fold1\\" + os.path.basename(jpegfile)
+                    # print(tffile)
+                    print(dest1)
+                    shutil.move(jpegfile, dest1)
+
+                elif int(rows['Index']) > 30 and int(rows['Index']) <= 56:
+
+                    dest2 = path + "\\fold2\\" + os.path.basename(jpegfile)
+                    print(dest2)
+                    shutil.move(jpegfile, dest2)
+
+                elif int(rows['Index']) > 56 and int(rows['Index']) <= 84:
+
+                    dest3 = path + "\\fold3\\" + os.path.basename(jpegfile)
+                    print(dest3)
+                    shutil.move(jpegfile, dest3)
+
+                elif int(rows['Index']) > 84 and int(rows['Index']) <= 114:
+
+                    dest4 = path + "\\fold4\\" + os.path.basename(jpegfile)
+                    print(dest4)
+                    shutil.move(jpegfile, dest4)
+
+                elif int(rows['Index']) > 114 and int(rows['Index']) <= 139:
+
+                    dest5 = path + "\\fold5\\" + os.path.basename(jpegfile)
+                    print(dest5)
+                    shutil.move(jpegfile, dest5)
+
 
 
 def sorttofoldsphan(path):
@@ -80,12 +170,16 @@ def sorttofoldsphan(path):
         shutil.move(file2, dest2)
 
 
-def main():
-    path = 'R:\Bojechko\TFRecords\TrainNoNormalizationMultipleProj'
-    sorttofolds(path)
-    sorttofoldsphan(path)
 
+def main():
+
+    #path = r'R:\TFRecords\TrainNoNormalizationMultipleProj'
+    #sorttofolds(path)
+
+    path = r'R:\TFRecords\JpegsNoNormalizationMultipleProj'
+    sortjpegs(path)
+
+    #sorttofoldsphan(path)
 
 if __name__ == '__main__':
-    pass
-
+    main()
