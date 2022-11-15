@@ -7,35 +7,46 @@ The steps are currently arbitrary and are likely to move later as the flow is un
 """
 
 import os
-
-basepath = os.path.join('.', 'Data', 'Patient')
-
-"""
-First, create the PDOS and reduced resolution EPID images
-"""
-if False:
-    from PreProcessingTools.CreatePDOSAndRIImages import CreatePDOS_and_RI_Images
-    # Factor with which to downsample EPID images are 1280x1280
-    Ndownsample = 5
-    CreatePDOS_and_RI_Images(basepath, Ndownsample)
-
-"""
-Next, create the projection from CBCT
-"""
-RTIpath = os.path.join(basepath, 'RTIMAGE')
-CBCTpath = os.path.join(basepath, 'CT')
+rewrite = True
+data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
+logs_file = os.path.join('.', 'errors_log.txt')
+if not os.path.exists(logs_file):
+    fid = open(logs_file, 'w+')
+    fid.close()
 if True:
-    from cbctprojections import MakeCBCTProjection
-    MakeCBCTProjection(RIpath=RTIpath, CBCTpath=CBCTpath)
-"""
-Lets look at the data real quick
-"""
-from PreProcessingTools.EvaluatingData import evaluate_data
-evaluate_data()
+    from tqdm import tqdm
+    from PreProcessingTools.Main import create_inputs
+    """
+    First, for preprocessing, create the padded CBCTs by registering them with the primary CT and padding
+    Second, create the fluence and PDOS images from DICOM handles
+    Third, create the DRR and half-CBCT DRR for each beam angle
+    Fourth, align the PDOS and fluence with the DRRs
+    """
+    for patient_data in ['phantom']: #'PatientData2',
+        base_patient_path = os.path.join(data_path, patient_data)
+        MRN_list = os.listdir(base_patient_path)
+        # fid = open(os.path.join('.', 'PreProcessingTools', 'MRN.txt'))
+        # MRN_list = fid.readlines()
+        # fid.close()
+        pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
+        for patient_MRN in MRN_list:
+            patient_MRN = patient_MRN.strip('\n')
+            print(patient_MRN)
+            patient_path = os.path.join(base_patient_path, patient_MRN)
+            try:
+                create_inputs(patient_path, rewrite)
+            except:
+                fid = open(logs_file, 'a')
+                fid.write("Error for {}\n".format(patient_path))
+                fid.close()
+            pbar.update()
 """
 Lets create some .tfrecords from data already made
 """
-data_path = r'\\ad.ucsd.edu\ahs\radon\research\Bojechko'
-if False:
+if True:
     from PreProcessingTools.CreateTFRecords import create_tf_records
-    create_tf_records(data_path)
+    create_tf_records(data_path, rewrite=True)
+    from sort_tofolds import main
+    # main()
+    from DeepLearningTools.Utilities import main
+    main()

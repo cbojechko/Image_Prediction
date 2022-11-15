@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+errors_log.txt
 Data/
 MRN.txt
 # C extensions
@@ -9,6 +10,9 @@ MRN.txt
 *.mha
 *.nii.gz
 *.xml
+*.xlsx
+PreProcessingTools/Data.xlsx
+PreProcessingTools/Patient_Keys.xlsx
 # Distribution / packaging
 .Python
 .idea/
@@ -116,3 +120,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/PreProcessingTools/MRN
+!/PreProcessingTools/Data.xlsx
+!/PreProcessingTools/Data.xlsx
