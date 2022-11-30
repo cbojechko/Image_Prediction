@@ -22,12 +22,12 @@ if True:
     Third, create the DRR and half-CBCT DRR for each beam angle
     Fourth, align the PDOS and fluence with the DRRs
     """
-    for patient_data in ['PatientData2']: #, 'phantom'
+    for patient_data in ['phantom']: #'PatientData2',
         base_patient_path = os.path.join(data_path, patient_data)
         MRN_list = os.listdir(base_patient_path)
-        fid = open(os.path.join('.', 'PreProcessingTools', 'MRN.txt'))
-        MRN_list = fid.readlines()
-        fid.close()
+        # fid = open(os.path.join('.', 'PreProcessingTools', 'MRN.txt'))
+        # MRN_list = fid.readlines()
+        # fid.close()
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
         for patient_MRN in MRN_list:
             patient_MRN = patient_MRN.strip('\n')

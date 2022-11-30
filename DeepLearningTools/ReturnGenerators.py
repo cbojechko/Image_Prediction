@@ -40,12 +40,26 @@ def return_generator(records_path, proj_to_panel=True, add_5cm_keys=True, **kwar
     base_processors = [
         CProcessors.Squeeze(image_keys=all_keys),
         CProcessors.ExpandDimension(axis=-1, image_keys=all_keys),
+        CProcessors.CreateNewKey(input_keys=('drr_array',), output_keys=('exp_new_drr_array',)),
+        CProcessors.MultiplyImagesByConstant(keys=('exp_new_drr_array',), values=(-4,)),
+        CProcessors.TakeExpOfKey(input_keys=('exp_new_drr_array',)),
+
+        CProcessors.CreateNewKey(input_keys=('drr_array',), output_keys=('multiplied_drr_array',)),
+        CProcessors.MultiplyImagesByConstant(keys=('multiplied_drr_array',), values=(0.15,)),
+        CProcessors.AddImagesTogether(keys=('exp_new_drr_array', 'multiplied_drr_array'), out_key='exp_new_drr_array'),
+
+        CProcessors.CreateNewKey(input_keys=('drr_array',), output_keys=('squared_drr_array',)),
+        CProcessors.MultiplyImagesTogether(keys=('squared_drr_array', 'squared_drr_array'), out_key='squared_drr_array'),
+        CProcessors.MultiplyImagesByConstant(keys=('squared_drr_array',), values=(-.1,)),
+        CProcessors.AddImagesTogether(keys=('exp_new_drr_array', 'multiplied_drr_array'), out_key='summed_drr_array'),
+
+        CProcessors.MultiplyImagesTogether(keys=('pdos_array', 'summed_drr_array'), out_key='pdos_drr_multiplied'),
         CProcessors.MultiplyImagesByConstant(keys=drr_keys, values=(1/90, 1/90, 1/90, 1/90)),
         CProcessors.CombineKeys(axis=-1,
                                 image_keys=input_keys,
                                 output_key='test'),
         CProcessors.ReturnOutputs(input_keys=('test',),
-                                  output_keys=('fluence_array',)),
+                                  output_keys=('pdos_drr_multiplied',)),
         {'batch': 1}, {'repeat'}
     ]
     generator.compile_data_set(image_processors=base_processors, debug=False)
