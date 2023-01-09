@@ -463,19 +463,20 @@ def createDRRs(patient_path, rewrite):
             gantry_angle = beam["Gantry"]
             iso_center = beam["Iso"]
             cbct_handle = None
-            out_file = padded_cbct_file.replace("Padded_CBCT", f"DRR_G{gantry_angle}")
+            description = f"G{gantry_angle}_{beam['Beam_Name']}"
+            out_file = padded_cbct_file.replace("Padded_CBCT", f"DRR_{description}")
             if not os.path.exists(out_file) or rewrite:
                 cbct_handle = sitk.ReadImage(padded_cbct_file)
                 create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
                            out_path=out_file, translations=[i for i in iso_center], distance_from_iso=None)
             for height in [-50, 0, 50]:
-                out_file = padded_cbct_file.replace("Padded_CBCT", f"Proj_{height//10}cm_to_iso_G{gantry_angle}")
+                out_file = padded_cbct_file.replace("Padded_CBCT", f"Proj_{height//10}cm_to_iso_{description}")
                 if not os.path.exists(out_file) or rewrite:
                     if cbct_handle is None:
                         cbct_handle = sitk.ReadImage(padded_cbct_file)
                     create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1000+height,
                                out_path=out_file, translations=[i for i in iso_center], distance_from_iso=height)
-                out_file = padded_cbct_file.replace("Padded_CBCT", f"Proj_{height//10}cm_from_iso_to_panel_G{gantry_angle}")
+                out_file = padded_cbct_file.replace("Padded_CBCT", f"Proj_{height//10}cm_from_iso_to_panel_{description}")
                 if not os.path.exists(out_file) or rewrite:
                     if cbct_handle is None:
                         cbct_handle = sitk.ReadImage(padded_cbct_file)
@@ -529,8 +530,13 @@ def return_plan_dictionary(patient_path):
     for beam_sequence in ds_plan.BeamSequence:
         if beam_sequence.TreatmentDeliveryType == "SETUP":
             continue
-        plan_dictionary[beam_sequence.BeamNumber] = {"Iso": beam_sequence.ControlPointSequence[0].IsocenterPosition,
-                                                     "Gantry": round(beam_sequence.ControlPointSequence[0].GantryAngle)}
+        control_sequence = beam_sequence.ControlPointSequence[0]
+        beam_limiting_device = control_sequence.BeamLimitingDevicePositionSequence
+        plan_dictionary[beam_sequence.BeamNumber] = {"Iso": control_sequence.IsocenterPosition,
+                                                     "Gantry": round(control_sequence.GantryAngle),
+                                                     "X_Jaw": round(beam_limiting_device[0].LeafJawPositions[-1]-beam_limiting_device[0].LeafJawPositions[0]),
+                                                     "Y_Jaw": round(beam_limiting_device[1].LeafJawPositions[-1]-beam_limiting_device[1].LeafJawPositions[0]),
+                                                     "Beam_Name": beam_sequence.BeamName.replace("_", "")}
     for fraction_sequence in ds_plan.FractionGroupSequence:
         for beam_sequence in fraction_sequence.ReferencedBeamSequence:
             if beam_sequence.ReferencedBeamNumber in plan_dictionary:
@@ -580,7 +586,8 @@ def create_transmission(patient_path, rewrite):
             description = "Predicted"
         else:
             continue
-        out_file = os.path.join(patient_path, "Niftiis", "{}_G{}_{}.mha".format(description, gantry, date))
+        beam_name = plan_dictionary[referenced_beam_number]['Beam_Name']
+        out_file = os.path.join(patient_path, "Niftiis", f"{description}_G{gantry}_{beam_name}_{date}.mha")
         if os.path.exists(out_file) and not rewrite:
             continue
         fluence_reader.load_file()
