@@ -44,28 +44,27 @@ def return_dictionary_list(base_path, out_path, rewrite):
                     print('Issue with {}'.format(patient_MRN))
             if previous_run.shape[0] == 0:
                 print("Issue with {}".format(patient_MRN))
-                continue
                 rewrite_excel = True
-                i = 0
-                while i in df['Index'].values:
-                    i += 1
+                i = max(df['Index'].values)+1
+                # while i in df['Index'].values:
+                #     i += 1
                 df = df.append(pd.DataFrame({patient_id_column: [patient_MRN], 'Index': [i]}))
             else:
                 i = int(previous_run['Index'].values[0])
-            # if i != 50:
+            # if i < 9982:
             #     continue
             print(patient_MRN)
             path = os.path.join(base_patient_path, patient_MRN, 'Niftiis')
             pdos_files = glob(os.path.join(path, 'PDOS_G*'))
             for pdos_file in pdos_files:
-                angle = pdos_file.split('PDOS_')[1].split('_')[0]
+                angle = "".join([f"{_}_" for _ in pdos_file.split('PDOS_')[1].split('_')[:-1]])
                 """
                 Next, find the fluence files with the same angle used
                 """
-                fluence_files = glob(os.path.join(path, f"Fluence_{angle}_*"))
+                fluence_files = glob(os.path.join(path, f"Fluence_{angle}*"))
                 for fluence_file in fluence_files:
-                    date = fluence_file.split('_')[-1].split('.')[0]
-                    addition = f"{angle}_{date}"
+                    file_info = fluence_file.split('_')
+                    addition = "".join([f"{_}_" for _ in file_info[1:]]).split('.mha')[0]  # Gantry_field name_date
                     iso_proj_file = os.path.join(path, f"Proj_0cm_to_iso_{addition}.mha")
                     deep_proj_file = os.path.join(path, f"Proj_5cm_to_iso_{addition}.mha")
                     shallow_proj_file = os.path.join(path, f"Proj_-5cm_to_iso_{addition}.mha")
@@ -73,9 +72,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
                     iso_proj_to_panel_file = os.path.join(path, f"Proj_0cm_from_iso_to_panel_{addition}.mha")
                     shallow_proj_to_panel_file = os.path.join(path, f"Proj_-5cm_from_iso_to_panel_{addition}.mha")
                     full_drr_file = os.path.join(path, f"DRR_{addition}.mha")
-                    examples_exist = [os.path.exists(os.path.join(out_path, "{}_{}_{}_{}.tfrecord".format(i,
-                                                                                                          angle, date,
-                                                                                                          _)))
+                    examples_exist = [os.path.exists(os.path.join(out_path, f"{i}_{addition}_{_}.tfrecord"))
                                       for _ in range(5)]
                     if max(examples_exist) and not rewrite:  # If we have the record, move on
                         continue
@@ -87,7 +84,7 @@ def return_dictionary_list(base_path, out_path, rewrite):
                                         'deep_to_panel_path': deep_proj_to_panel_file,
                                         'iso_to_panel_path': iso_proj_to_panel_file,
                                         'shallow_to_panel_path': shallow_proj_to_panel_file,
-                                        'out_file_name': f"{i}_{angle}_{date}.tfrecord"}
+                                        'out_file_name': f"{i}_{addition}.tfrecord"}
                         output_list.append(patient_dict)
     if rewrite_excel:
         df.to_excel(excel_path, index=0)
