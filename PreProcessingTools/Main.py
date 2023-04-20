@@ -466,7 +466,8 @@ def createDRRs(patient_path, rewrite):
             description = f"G{gantry_angle}_{beam['Beam_Name']}"
             out_file = padded_cbct_file.replace("Padded_CBCT", f"DRR_{description}")
             if not os.path.exists(out_file) or rewrite:
-                cbct_handle = sitk.ReadImage(padded_cbct_file)
+                #cbct_handle = sitk.ReadImage(padded_cbct_file)
+                cbct_handle = sitk.ReadImage(os.path.join(patient_path, "Niftiis", "Primary_CT.mha"))
                 create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
                            out_path=out_file, translations=[i for i in iso_center], distance_from_iso=None)
             for height in [-50, 0, 50]:
@@ -632,8 +633,8 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     skip = os.path.join(patient_path, 'Inputs_made.txt')
     # if os.path.exists(skip) and not rewrite:
     #     return None
-    create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    #create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
+    #create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     if patient_path.find('phantom') != -1:
         update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
