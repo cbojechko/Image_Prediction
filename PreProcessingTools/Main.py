@@ -7,7 +7,7 @@ from PreProcessingTools.itk_sitk_converter import *
 import SimpleITK as sitk
 import os
 from NiftiResampler import ResampleTools
-from PreProcessingTools.Pad_CBCTs_From_Digital_Phantom import update_CBCT
+from PreProcessingTools.Pad_CBCTs_From_Digital_Phantom import pad_cbct
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
@@ -349,31 +349,6 @@ def create_registered_cbct(patient_path, rewrite=False):
     return None
 
 
-def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.Image,
-             erode_filter: sitk.BinaryErodeImageFilter, couch_start: int):
-    """
-    :param cbct_handle:
-    :param ct_handle:
-    :param expansion: expansion to explore, in cm
-    :return:
-    """
-    ct_array = sitk.GetArrayFromImage(ct_handle)
-    cbct_array = sitk.GetArrayFromImage(cbct_handle)
-    cbct_s = cbct_array.shape
-    spacing = cbct_handle.GetSpacing()
-    couch_stop = couch_start + int(50 * spacing[1])
-    ct_array[:, couch_stop:, :] = -1000
-    cbct_array[:, couch_stop:, :] = -1000
-    ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0]//2, couch_start:couch_stop, cbct_s[-1]//2][None, ..., None]
-    cbct_array[:, couch_start:couch_stop, :] = cbct_array[:, couch_start:couch_stop, cbct_s[-1]//2][..., None]
-    binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
-    eroded_meta = erode_filter.Execute(binary_meta)
-    eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
-    cbct_array[eroded_meta_array != 1] = ct_array[eroded_meta_array != 1]
-    padded_cbct_handle = array_to_sitk(cbct_array, cbct_handle)
-    return padded_cbct_handle
-
-
 def create_padded_cbcts(patient_path, rewrite=False):
     patient_path = os.path.join(patient_path, "Niftiis")
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
@@ -635,8 +610,6 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     #     return None
     #create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
     create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
-    # if patient_path.find('phantom') != -1:
-    #     update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
