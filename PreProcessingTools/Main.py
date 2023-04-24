@@ -8,6 +8,7 @@ import SimpleITK as sitk
 import os
 from NiftiResampler import ResampleTools
 from PreProcessingTools.Pad_CBCTs_From_Digital_Phantom import update_CBCT
+from PreProcessingTools.Tools import *
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
@@ -157,14 +158,6 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     return None
 
 
-def array_to_sitk(array: np.ndarray, reference_handle: sitk.Image):
-    out_handle = sitk.GetImageFromArray(array)
-    out_handle.SetSpacing(reference_handle.GetSpacing())
-    out_handle.SetOrigin(reference_handle.GetOrigin())
-    out_handle.SetDirection(reference_handle.GetDirection())
-    return out_handle
-
-
 def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
     slice_thickness = cbct_drr.GetSpacing()[-1]
     cbct_array = sitk.GetArrayFromImage(cbct_drr)
@@ -205,23 +198,6 @@ def expandDRR(patient_path):
         cbct_handle = fix_DRR(cbct_drr=CBCTDRRhandle, ct_drr=CTDRRhandle)
         sitk.WriteImage(cbct_handle, os.path.join(patient_path, file_name.replace(".mha", "_Padded.mha")))
     return None
-
-
-def get_binary_image(annotation_handle, lowerThreshold, upperThreshold):
-    thresholded_image = sitk.BinaryThreshold(annotation_handle, lowerThreshold=lowerThreshold,
-                                             upperThreshold=upperThreshold)
-    return thresholded_image
-
-
-def get_connected_image(annotation_handle, lowerThreshold=-900, upperThreshold=5000):
-    Connected_Component_Filter = sitk.ConnectedComponentImageFilter()
-    Connected_Component_Filter.FullyConnectedOff()
-    RelabelComponent = sitk.RelabelComponentImageFilter()
-    RelabelComponent.SortByObjectSizeOn()
-    thresholded_image = get_binary_image(annotation_handle, lowerThreshold, upperThreshold)
-    connected_image = Connected_Component_Filter.Execute(thresholded_image)
-    connected_image = RelabelComponent.Execute(connected_image)
-    return connected_image
 
 
 def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
@@ -635,6 +611,9 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     #     return None
     #create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
     create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    if patient_path.find('phantom') != -1:
+        "Padding in sup-inf direction"
+        update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
