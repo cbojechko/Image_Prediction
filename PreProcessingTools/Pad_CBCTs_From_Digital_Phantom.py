@@ -5,43 +5,39 @@ from glob import glob
 from PlotScrollNumpyArrays import plot_scroll_Image
 
 
-def get_binary_image(annotation_handle, lowerThreshold, upperThreshold):
-    thresholded_image = sitk.BinaryThreshold(annotation_handle, lowerThreshold=lowerThreshold,
-                                             upperThreshold=upperThreshold)
-    return thresholded_image
-
-
-def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.Image,
-             erode_filter: sitk.BinaryErodeImageFilter, couch_start: int):
-    """
-    :param cbct_handle:
-    :param ct_handle:
-    :param expansion: expansion to explore, in cm
-    :return:
-    """
-    ct_array = sitk.GetArrayFromImage(ct_handle)
-    cbct_array = sitk.GetArrayFromImage(cbct_handle)
-    cbct_s = cbct_array.shape
-    spacing = cbct_handle.GetSpacing()
-    couch_stop = couch_start + int(50 * spacing[1])
-    ct_array[:, couch_stop:, :] = -1000
-    cbct_array[:, couch_stop:, :] = -1000
-    ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0]//2, couch_start:couch_stop, cbct_s[-1]//2][None, ..., None]
-    cbct_array[:, couch_start:couch_stop, :] = cbct_array[:, couch_start:couch_stop, cbct_s[-1]//2][..., None]
-    binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
-    eroded_meta = erode_filter.Execute(binary_meta)
-    eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
-    cbct_array[eroded_meta_array != 1] = ct_array[eroded_meta_array != 1]
-    padded_cbct_handle = array_to_sitk(cbct_array, cbct_handle)
-    return padded_cbct_handle
-
-
 def array_to_sitk(array: np.ndarray, reference_handle: sitk.Image):
     out_handle = sitk.GetImageFromArray(array)
     out_handle.SetSpacing(reference_handle.GetSpacing())
     out_handle.SetOrigin(reference_handle.GetOrigin())
     out_handle.SetDirection(reference_handle.GetDirection())
     return out_handle
+
+
+def update_CBCT(nifti_path, rewrite=False):
+    status_file = os.path.join(nifti_path, "Padded_from_air.txt")
+    if os.path.exists(status_file) and not rewrite:
+        return None
+    padded_cbcts = glob(os.path.join(nifti_path, "Padded_CBCT_*"))
+    for padded_cbct in padded_cbcts:
+        padded_handle = sitk.ReadImage(padded_cbct)
+        spacing = padded_handle.GetSpacing()
+        padded_np = sitk.GetArrayFromImage(padded_handle)
+        flattened_padded = np.average(padded_np, axis=(1, 2))
+        air = np.where(flattened_padded < -900)[0]
+        not_air = np.where(flattened_padded > -900)[0]
+        if len(air) > 0:
+            if len(not_air) > 0:
+                start = not_air[0] + int(20/spacing[-1])
+                stop = not_air[-1] - int(20/spacing[-1])
+                padded_np[:start] = padded_np[start]
+                padded_np[stop:] = padded_np[stop]
+                new_padded_handle = array_to_sitk(padded_np, reference_handle=padded_handle)
+                sitk.WriteImage(new_padded_handle, padded_cbct)
+                print('Rewriting {}'.format(nifti_path))
+        else:
+            print(f"No padding on {nifti_path}")
+        fid = open(status_file, 'w+')
+        fid.close()
 
 
 def main_update_CBCT(path=r'R:\Bojechko\phantom'):
