@@ -634,9 +634,9 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     # if os.path.exists(skip) and not rewrite:
     #     return None
     #create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    #create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
-    if patient_path.find('phantom') != -1:
-        update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
+    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    # if patient_path.find('phantom') != -1:
+    #     update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
     createDRRs(patient_path=patient_path, rewrite=rewrite)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')

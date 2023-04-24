@@ -20,6 +20,7 @@ def update_CBCT(nifti_path, rewrite=False):
     padded_cbcts = glob(os.path.join(nifti_path, "Padded_CBCT_*"))
     for padded_cbct in padded_cbcts:
         padded_handle = sitk.ReadImage(padded_cbct)
+        #  primary_handle = sitk.ReadImage(os.path.join(nifti_path, "Primary_CT.mha"))
         spacing = padded_handle.GetSpacing()
         padded_np = sitk.GetArrayFromImage(padded_handle)
         flattened_padded = np.average(padded_np, axis=(1, 2))
