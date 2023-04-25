@@ -90,24 +90,24 @@ def replace_ionchamber(primary_CT_handle: sitk.Image) -> sitk.Image:
 
 
 def running(patient_path, rewrite: True):
-    print("Running")
     patient_path = os.path.join(patient_path, "Niftiis")
-    status_file = os.path.join(patient_path, "Finished_Padded_CBCT.txt")
-    if os.path.exists(status_file) and not rewrite:
-        return None
-    CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT_Updated_NoRails.mha"))
-    handle = replace_ionchamber(CT_handle)
-    sitk.WriteImage(handle, os.path.join(patient_path, "Primary_CT_Updated_NoRails_NoIon.mha"))
-    return None
-
-
-def running_replace_couch(patient_path, rewrite: True):
-    patient_path = os.path.join(patient_path, "Niftiis")
-    status_file = os.path.join(patient_path, "Finished_Padded_CBCT.txt")
+    status_file = os.path.join(patient_path, "Finished_UpdatingPrimary.txt")
     if os.path.exists(status_file) and not rewrite:
         return None
     CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
-    out_file = os.path.join(patient_path, "Primary_CT_Updated.mha")
+    print("Replacing couch")
+    CT_no_couch_handle = replace_couch(patient_path, CT_handle)
+    print("Removing rods")
+    CT_no_rails_handle = remove_rods(CT_no_couch_handle)
+    print("Removing ion chamber")
+    CT_no_ion_chamber = replace_ionchamber(CT_no_rails_handle)
+    sitk.WriteImage(CT_no_ion_chamber, os.path.join(patient_path, "Primary_CT_Updated.mha"))
+    fid = open(status_file, 'w+')
+    fid.close()
+    return None
+
+
+def replace_couch(patient_path, CT_handle: sitk.Image) -> sitk.Image:
     CBCT_Files = glob(os.path.join(patient_path, 'Registered_CBCT*.mha'))
     for CBCT_File in CBCT_Files:
         table_file = CBCT_File.replace("Registered_", "TableHeight_").replace(".mha", ".txt")
@@ -116,16 +116,14 @@ def running_replace_couch(patient_path, rewrite: True):
         table_vert = int(fid.readline().split(', ')[1])
         fid.close()
         fixed_ct_handle = replace_CT_couch(CT_handle, registered_handle, table_vert)
-        fixed_ct_handle = remove_rods(fixed_ct_handle)
-        sitk.WriteImage(fixed_ct_handle, out_file)
-        fid = open(status_file, 'w+')
-        fid.close()
-        return None
+        return fixed_ct_handle
 
 
 def main():
-    patient_path = r'R:\Bojechko\phantom\1000'
-    running(patient_path, True)
+    patient_path = r'R:\Bojechko\phantom'
+    for p in os.listdir(patient_path):
+        print(f"Running for patient {p}")
+        running(os.path.join(patient_path, p), False)
 
 
 if __name__ == "__main__":
