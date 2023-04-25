@@ -29,12 +29,15 @@ if True:
         # MRN_list = fid.readlines()
         # fid.close()
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
+        perform_on_primary_CT = True
         for patient_MRN in MRN_list:
             patient_MRN = patient_MRN.strip('\n')
             print(patient_MRN)
+            # if int(patient_MRN) != 1001:
+            #     continue
             patient_path = os.path.join(base_patient_path, patient_MRN)
             try:
-                create_inputs(patient_path, rewrite)
+                create_inputs(patient_path, rewrite, perform_on_primary_CT)
             except:
                 fid = open(logs_file, 'a')
                 fid.write("Error for {}\n".format(patient_path))
@@ -43,7 +46,7 @@ if True:
 """
 Lets create some .tfrecords from data already made
 """
-if True:
+if False:
     from PreProcessingTools.CreateTFRecords import create_tf_records
     create_tf_records(data_path, rewrite=True)
     from sort_tofolds import main

@@ -8,6 +8,8 @@ import SimpleITK as sitk
 import os
 from NiftiResampler import ResampleTools
 from PreProcessingTools.Pad_CBCTs_From_Digital_Phantom import update_CBCT
+from PreProcessingTools.UpdatePrimaryCT import update_primary_CT
+from PreProcessingTools.Tools import *
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
 import numpy as np
@@ -157,14 +159,6 @@ def create_drr(sitk_handle, sid=1000, spd=1540, gantry_angle=0, out_path=os.path
     return None
 
 
-def array_to_sitk(array: np.ndarray, reference_handle: sitk.Image):
-    out_handle = sitk.GetImageFromArray(array)
-    out_handle.SetSpacing(reference_handle.GetSpacing())
-    out_handle.SetOrigin(reference_handle.GetOrigin())
-    out_handle.SetDirection(reference_handle.GetDirection())
-    return out_handle
-
-
 def fix_DRR(cbct_drr: sitk.Image, ct_drr: sitk.Image):
     slice_thickness = cbct_drr.GetSpacing()[-1]
     cbct_array = sitk.GetArrayFromImage(cbct_drr)
@@ -205,23 +199,6 @@ def expandDRR(patient_path):
         cbct_handle = fix_DRR(cbct_drr=CBCTDRRhandle, ct_drr=CTDRRhandle)
         sitk.WriteImage(cbct_handle, os.path.join(patient_path, file_name.replace(".mha", "_Padded.mha")))
     return None
-
-
-def get_binary_image(annotation_handle, lowerThreshold, upperThreshold):
-    thresholded_image = sitk.BinaryThreshold(annotation_handle, lowerThreshold=lowerThreshold,
-                                             upperThreshold=upperThreshold)
-    return thresholded_image
-
-
-def get_connected_image(annotation_handle, lowerThreshold=-900, upperThreshold=5000):
-    Connected_Component_Filter = sitk.ConnectedComponentImageFilter()
-    Connected_Component_Filter.FullyConnectedOff()
-    RelabelComponent = sitk.RelabelComponentImageFilter()
-    RelabelComponent.SortByObjectSizeOn()
-    thresholded_image = get_binary_image(annotation_handle, lowerThreshold, upperThreshold)
-    connected_image = Connected_Component_Filter.Execute(thresholded_image)
-    connected_image = RelabelComponent.Execute(connected_image)
-    return connected_image
 
 
 def get_outside_body_contour(annotation_handle, lowerThreshold, upperThreshold):
@@ -349,31 +326,6 @@ def create_registered_cbct(patient_path, rewrite=False):
     return None
 
 
-def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.Image,
-             erode_filter: sitk.BinaryErodeImageFilter, couch_start: int):
-    """
-    :param cbct_handle:
-    :param ct_handle:
-    :param expansion: expansion to explore, in cm
-    :return:
-    """
-    ct_array = sitk.GetArrayFromImage(ct_handle)
-    cbct_array = sitk.GetArrayFromImage(cbct_handle)
-    cbct_s = cbct_array.shape
-    spacing = cbct_handle.GetSpacing()
-    couch_stop = couch_start + int(50 * spacing[1])
-    ct_array[:, couch_stop:, :] = -1000
-    cbct_array[:, couch_stop:, :] = -1000
-    ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0]//2, couch_start:couch_stop, cbct_s[-1]//2][None, ..., None]
-    cbct_array[:, couch_start:couch_stop, :] = cbct_array[:, couch_start:couch_stop, cbct_s[-1]//2][..., None]
-    binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
-    eroded_meta = erode_filter.Execute(binary_meta)
-    eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
-    cbct_array[eroded_meta_array != 1] = ct_array[eroded_meta_array != 1]
-    padded_cbct_handle = array_to_sitk(cbct_array, cbct_handle)
-    return padded_cbct_handle
-
-
 def create_padded_cbcts(patient_path, rewrite=False):
     patient_path = os.path.join(patient_path, "Niftiis")
     primary_CT_path = os.path.join(patient_path, "Primary_CT.mha")
@@ -406,6 +358,31 @@ def create_padded_cbcts(patient_path, rewrite=False):
     fid = open(status_file, 'w+')
     fid.close()
     return None
+
+
+def pad_cbct(meta_handle: sitk.Image, cbct_handle: sitk.Image, ct_handle: sitk.Image,
+             erode_filter: sitk.BinaryErodeImageFilter, couch_start: int):
+    """
+    :param cbct_handle:
+    :param ct_handle:
+    :param expansion: expansion to explore, in cm
+    :return:
+    """
+    ct_array = sitk.GetArrayFromImage(ct_handle)
+    cbct_array = sitk.GetArrayFromImage(cbct_handle)
+    cbct_s = cbct_array.shape
+    spacing = cbct_handle.GetSpacing()
+    couch_stop = couch_start + int(50 * spacing[1])
+    ct_array[:, couch_stop:, :] = -1000
+    cbct_array[:, couch_stop:, :] = -1000
+    ct_array[:, couch_start:couch_stop, :] = cbct_array[cbct_s[0]//2, couch_start:couch_stop, cbct_s[-1]//2][None, ..., None]
+    cbct_array[:, couch_start:couch_stop, :] = cbct_array[:, couch_start:couch_stop, cbct_s[-1]//2][..., None]
+    binary_meta = get_binary_image(meta_handle, lowerThreshold=1, upperThreshold=2)
+    eroded_meta = erode_filter.Execute(binary_meta)
+    eroded_meta_array = sitk.GetArrayFromImage(eroded_meta)
+    cbct_array[eroded_meta_array != 1] = ct_array[eroded_meta_array != 1]
+    padded_cbct_handle = array_to_sitk(cbct_array, cbct_handle)
+    return padded_cbct_handle
 
 
 def shift_panel_origin(patient_path):
@@ -454,9 +431,10 @@ def update_origin(patient_path):
     return None
 
 
-def createDRRs(patient_path, rewrite):
+def createDRRs(patient_path, rewrite, perform_on_primary_CT=False):
     plan_dictionary = return_plan_dictionary(patient_path)
     padded_cbcts = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT*"))
+    primary_path = os.path.join(patient_path, "Niftiis", "Primary_CT_Updated.mha")
     for padded_cbct_file in padded_cbcts:
         for beam_number in plan_dictionary:
             beam = plan_dictionary[beam_number]
@@ -466,7 +444,10 @@ def createDRRs(patient_path, rewrite):
             description = f"G{gantry_angle}_{beam['Beam_Name']}"
             out_file = padded_cbct_file.replace("Padded_CBCT", f"DRR_{description}")
             if not os.path.exists(out_file) or rewrite:
-                cbct_handle = sitk.ReadImage(padded_cbct_file)
+                if not perform_on_primary_CT or not os.path.exists(primary_path):
+                    cbct_handle = sitk.ReadImage(padded_cbct_file)
+                else:
+                    cbct_handle = sitk.ReadImage(primary_path)
                 create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
                            out_path=out_file, translations=[i for i in iso_center], distance_from_iso=None)
             for height in [-50, 0, 50]:
@@ -616,7 +597,7 @@ def create_transmission(patient_path, rewrite):
     return None
 
 
-def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=False):
+def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=False, perform_on_primary_CT=False):
     """
     First, for preprocessing, create the padded CBCTs by registering them with the primary CT and padding
     Second, create the fluence and PDOS images from DICOM handles
@@ -632,12 +613,18 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     skip = os.path.join(patient_path, 'Inputs_made.txt')
     # if os.path.exists(skip) and not rewrite:
     #     return None
-    create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    #create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
+    #create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     if patient_path.find('phantom') != -1:
         "Padding in sup-inf direction"
-        update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-    createDRRs(patient_path=patient_path, rewrite=rewrite)
+        # update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
+        if perform_on_primary_CT:
+            update_primary_CT(patient_path, rewrite=rewrite)
+    else:
+        perform_on_primary_CT = False
+    print("Making DRRs")
+    createDRRs(patient_path=patient_path, rewrite=rewrite, perform_on_primary_CT=perform_on_primary_CT)
+    print("Updating transmission")
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
