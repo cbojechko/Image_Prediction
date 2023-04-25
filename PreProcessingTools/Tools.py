@@ -1,4 +1,5 @@
 import numpy as np
+from PlotScrollNumpyArrays.Plot_Scroll_Images import plot_scroll_Image
 import SimpleITK as sitk
 
 

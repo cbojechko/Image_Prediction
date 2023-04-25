@@ -52,7 +52,7 @@ def remove_rods(primary_CT_handle: sitk.Image) -> sitk.Image:
     spacing = primary_CT_handle.GetSpacing()
     dilate_filter = sitk.BinaryDilateImageFilter()
     dilate_filter.SetKernelType(sitk.sitkBall)
-    dilate_filter.SetKernelRadius((int(3 / spacing[0]), int(3 / spacing[1])))  # x, y
+    dilate_filter.SetKernelRadius((int(15 / spacing[0]), int(15 / spacing[1])))  # x, y
     mask_rails_handle = sitk.GetImageFromArray(mask_rails.astype('int'))
     dilated_rails_handle = dilate_filter.Execute(mask_rails_handle)
     dilated_rails_array = sitk.GetArrayFromImage(dilated_rails_handle)
@@ -67,15 +67,37 @@ def remove_rods(primary_CT_handle: sitk.Image) -> sitk.Image:
     return out_handle
 
 
+def replace_ionchamber(primary_CT_handle: sitk.Image) -> sitk.Image:
+    stats = sitk.LabelShapeStatisticsImageFilter()
+    connected_handle = get_connected_image(primary_CT_handle, lowerThreshold=2500, upperThreshold=9999)
+    stats.Execute(connected_handle)
+    """
+    We will end up getting slightly more volumes, because we are getting the BBs
+    """
+    spacing = primary_CT_handle.GetSpacing()
+    dilate_filter = sitk.BinaryDilateImageFilter()
+    dilate_filter.SetKernelType(sitk.sitkBall)
+    dilate_filter.SetKernelRadius((int(12 / spacing[0]), int(12 / spacing[1]), int(20 / spacing[2])))  # x, y, z
+    for label in stats.GetLabels():
+        binary_chamber = connected_handle == label
+        dilated_chamber = dilate_filter.Execute(binary_chamber)
+        dilated_chamber_array = sitk.GetArrayFromImage(dilated_chamber)
+        rolled_dilated_chamber_array = np.roll(dilated_chamber_array, -int(31/spacing[1]), axis=1)
+        primary_CT_array = sitk.GetArrayFromImage(primary_CT_handle)
+        primary_CT_array[dilated_chamber_array == 1] = primary_CT_array[rolled_dilated_chamber_array == 1]
+        primary_CT_handle = array_to_sitk(primary_CT_array, primary_CT_handle)
+        return primary_CT_handle
+
+
 def running(patient_path, rewrite: True):
     print("Running")
     patient_path = os.path.join(patient_path, "Niftiis")
     status_file = os.path.join(patient_path, "Finished_Padded_CBCT.txt")
     if os.path.exists(status_file) and not rewrite:
         return None
-    CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT_Updated.mha"))
-    handle = remove_rods(CT_handle)
-    sitk.WriteImage(handle, os.path.join(patient_path, "Primary_CT_Updated_NoRails.mha"))
+    CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT_Updated_NoRails.mha"))
+    handle = replace_ionchamber(CT_handle)
+    sitk.WriteImage(handle, os.path.join(patient_path, "Primary_CT_Updated_NoRails_NoIon.mha"))
     return None
 
 
@@ -94,6 +116,7 @@ def running_replace_couch(patient_path, rewrite: True):
         table_vert = int(fid.readline().split(', ')[1])
         fid.close()
         fixed_ct_handle = replace_CT_couch(CT_handle, registered_handle, table_vert)
+        fixed_ct_handle = remove_rods(fixed_ct_handle)
         sitk.WriteImage(fixed_ct_handle, out_file)
         fid = open(status_file, 'w+')
         fid.close()
