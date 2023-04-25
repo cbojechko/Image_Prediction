@@ -93,7 +93,14 @@ def replace_ionchamber(primary_CT_handle: sitk.Image) -> sitk.Image:
     return primary_CT_handle
 
 
-def running(patient_path, rewrite: True):
+def update_HU(primary_CT_handle: sitk.Image) -> sitk.Image:
+    scale = 1.0125
+    bias = -25.27
+    primary_CT_handle = primary_CT_handle * scale + bias
+    return primary_CT_handle
+
+
+def update_primary_CT(patient_path, rewrite: True):
     patient_path = os.path.join(patient_path, "Niftiis")
     status_file = os.path.join(patient_path, "Finished_UpdatingPrimary.txt")
     if os.path.exists(status_file) and not rewrite:
@@ -108,6 +115,8 @@ def running(patient_path, rewrite: True):
     CT_no_rails_handle = remove_rods(CT_no_couch_handle)
     print("Removing ion chamber")
     CT_no_ion_chamber = replace_ionchamber(CT_no_rails_handle)
+    print("Shifting HU")
+    CT_handle = update_HU(CT_handle)
     sitk.WriteImage(CT_no_ion_chamber, os.path.join(patient_path, "Primary_CT_Updated.mha"))
     fid = open(status_file, 'w+')
     fid.close()
@@ -130,8 +139,8 @@ def main():
     patient_path = r'R:\Bojechko\phantom'
     for p in os.listdir(patient_path):
         print(f"Running for patient {p}")
-        running(os.path.join(patient_path, p), False)
+        update_primary_CT(os.path.join(patient_path, p), False)
 
 
 if __name__ == "__main__":
-    main()
+    pass

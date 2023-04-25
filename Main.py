@@ -29,6 +29,7 @@ if True:
         # MRN_list = fid.readlines()
         # fid.close()
         pbar = tqdm(total=len(MRN_list), desc='Loading through patient files')
+        perform_on_primary_CT = True
         for patient_MRN in MRN_list:
             patient_MRN = patient_MRN.strip('\n')
             print(patient_MRN)
@@ -36,7 +37,7 @@ if True:
             #     continue
             patient_path = os.path.join(base_patient_path, patient_MRN)
             try:
-                create_inputs(patient_path, rewrite)
+                create_inputs(patient_path, rewrite, perform_on_primary_CT)
             except:
                 fid = open(logs_file, 'a')
                 fid.write("Error for {}\n".format(patient_path))

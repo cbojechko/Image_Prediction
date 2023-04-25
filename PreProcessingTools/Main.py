@@ -8,6 +8,7 @@ import SimpleITK as sitk
 import os
 from NiftiResampler import ResampleTools
 from PreProcessingTools.Pad_CBCTs_From_Digital_Phantom import update_CBCT
+from PreProcessingTools.UpdatePrimaryCT import update_primary_CT
 from PreProcessingTools.Tools import *
 from PreProcessingTools.RegisteringImages.src.RegisterImages.WithDicomReg import registerDicom
 import itk
@@ -430,9 +431,10 @@ def update_origin(patient_path):
     return None
 
 
-def createDRRs(patient_path, rewrite):
+def createDRRs(patient_path, rewrite, perform_on_primary_CT=False):
     plan_dictionary = return_plan_dictionary(patient_path)
     padded_cbcts = glob(os.path.join(patient_path, "Niftiis", "Padded_CBCT*"))
+    primary_path = os.path.join(patient_path, "Niftiis", "Primary_CT_Updated.mha")
     for padded_cbct_file in padded_cbcts:
         for beam_number in plan_dictionary:
             beam = plan_dictionary[beam_number]
@@ -442,8 +444,10 @@ def createDRRs(patient_path, rewrite):
             description = f"G{gantry_angle}_{beam['Beam_Name']}"
             out_file = padded_cbct_file.replace("Padded_CBCT", f"DRR_{description}")
             if not os.path.exists(out_file) or rewrite:
-                #cbct_handle = sitk.ReadImage(padded_cbct_file)
-                cbct_handle = sitk.ReadImage(os.path.join(patient_path, "Niftiis", "Primary_CT.mha"))
+                if not perform_on_primary_CT or not os.path.exists(primary_path):
+                    cbct_handle = sitk.ReadImage(padded_cbct_file)
+                else:
+                    cbct_handle = sitk.ReadImage(primary_path)
                 create_drr(cbct_handle, gantry_angle=gantry_angle, sid=1000, spd=1540,
                            out_path=out_file, translations=[i for i in iso_center], distance_from_iso=None)
             for height in [-50, 0, 50]:
@@ -593,7 +597,7 @@ def create_transmission(patient_path, rewrite):
     return None
 
 
-def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=False):
+def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=False, perform_on_primary_CT=False):
     """
     First, for preprocessing, create the padded CBCTs by registering them with the primary CT and padding
     Second, create the fluence and PDOS images from DICOM handles
@@ -610,11 +614,14 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     # if os.path.exists(skip) and not rewrite:
     #     return None
     #create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
-    create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
+    #create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     if patient_path.find('phantom') != -1:
         "Padding in sup-inf direction"
-        update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-    createDRRs(patient_path=patient_path, rewrite=rewrite)
+        # update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
+        update_primary_CT(patient_path, rewrite=True)
+    else:
+        perform_on_primary_CT = False
+    createDRRs(patient_path=patient_path, rewrite=rewrite, perform_on_primary_CT=perform_on_primary_CT)
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
