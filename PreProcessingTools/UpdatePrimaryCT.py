@@ -116,8 +116,8 @@ def update_primary_CT(patient_path, rewrite: True):
     print("Removing ion chamber")
     CT_no_ion_chamber = replace_ionchamber(CT_no_rails_handle)
     print("Shifting HU")
-    CT_handle = update_HU(CT_handle)
-    sitk.WriteImage(CT_no_ion_chamber, os.path.join(patient_path, "Primary_CT_Updated.mha"))
+    CT_out = update_HU(CT_no_ion_chamber)
+    sitk.WriteImage(CT_out, os.path.join(patient_path, "Primary_CT_Updated.mha"))
     fid = open(status_file, 'w+')
     fid.close()
     return None
