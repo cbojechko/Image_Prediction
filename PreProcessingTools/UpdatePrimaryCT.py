@@ -79,6 +79,8 @@ def replace_ionchamber(primary_CT_handle: sitk.Image) -> sitk.Image:
     dilate_filter.SetKernelType(sitk.sitkBall)
     dilate_filter.SetKernelRadius((int(12 / spacing[0]), int(12 / spacing[1]), int(20 / spacing[2])))  # x, y, z
     for label in stats.GetLabels():
+        if stats.GetEquivalentSphericalRadius(label) < 3:  # Should be at least 5 cm in equivalent radius from volume...
+            continue
         binary_chamber = connected_handle == label
         dilated_chamber = dilate_filter.Execute(binary_chamber)
         dilated_chamber_array = sitk.GetArrayFromImage(dilated_chamber)
@@ -87,6 +89,8 @@ def replace_ionchamber(primary_CT_handle: sitk.Image) -> sitk.Image:
         primary_CT_array[dilated_chamber_array == 1] = primary_CT_array[rolled_dilated_chamber_array == 1]
         primary_CT_handle = array_to_sitk(primary_CT_array, primary_CT_handle)
         return primary_CT_handle
+    print("No chamber found here")
+    return primary_CT_handle
 
 
 def running(patient_path, rewrite: True):
@@ -94,7 +98,10 @@ def running(patient_path, rewrite: True):
     status_file = os.path.join(patient_path, "Finished_UpdatingPrimary.txt")
     if os.path.exists(status_file) and not rewrite:
         return None
-    CT_handle = sitk.ReadImage(os.path.join(patient_path, "Primary_CT.mha"))
+    primary_path = os.path.join(patient_path, "Primary_CT.mha")
+    if not os.path.exists(primary_path):
+        return None
+    CT_handle = sitk.ReadImage(primary_path)
     print("Replacing couch")
     CT_no_couch_handle = replace_couch(patient_path, CT_handle)
     print("Removing rods")
