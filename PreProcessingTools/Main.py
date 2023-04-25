@@ -618,10 +618,13 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     if patient_path.find('phantom') != -1:
         "Padding in sup-inf direction"
         # update_CBCT(os.path.join(patient_path, 'Niftiis'), rewrite=rewrite)
-        update_primary_CT(patient_path, rewrite=True)
+        if perform_on_primary_CT:
+            update_primary_CT(patient_path, rewrite=rewrite)
     else:
         perform_on_primary_CT = False
+    print("Making DRRs")
     createDRRs(patient_path=patient_path, rewrite=rewrite, perform_on_primary_CT=perform_on_primary_CT)
+    print("Updating transmission")
     create_transmission(patient_path=patient_path, rewrite=rewrite)
     fid = open(skip, 'w+')
     fid.close()
