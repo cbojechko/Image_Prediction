@@ -1,6 +1,5 @@
 import copy
 import typing
-import SimpleITK
 from matplotlib import pyplot as plt
 from glob import glob
 from PreProcessingTools.itk_sitk_converter import *
@@ -613,7 +612,7 @@ def create_inputs(patient_path: typing.Union[str, bytes, os.PathLike], rewrite=F
     skip = os.path.join(patient_path, 'Inputs_made.txt')
     # if os.path.exists(skip) and not rewrite:
     #     return None
-    #create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
+    create_registered_cbct(patient_path=patient_path, rewrite=rewrite)
     #create_padded_cbcts(patient_path=patient_path, rewrite=rewrite)
     if patient_path.find('phantom') != -1:
         "Padding in sup-inf direction"
